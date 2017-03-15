@@ -103,9 +103,107 @@ class Spider
 
 
 
+    
+    private $config = [];
+
+
+    // 回调
+    public $before_start;
+
+    private $queue = [];
+
+    public function __construct($config)
+    {
+        $this->config = array_merge($this->config, $config);
+    }
+
     public function start()
     {
         
+        if(empty($this->config['scan_urls'])) {
+            Log::error("未配置入口 URL");exit;
+        }
+
+        foreach ($this->config['scan_urls'] as $url) {
+            if(!$this->is_scan_page($url)) {// 检查入口 URL 是否正确
+                Log::error("入口 URL = {$url}，不匹配当前已配置域名范围");
+                exit;
+            }
+        }
+
+        if(Help::isWin()) {// 如果是 windows 系统，则强制显示为日志
+            Log::$log_show = true;
+        } else {
+            Log::$log_show = $this->logShow;
+        }
+
+        foreach ($this->config['scan_urls'] as $url) {
+            $this->add_scan_url($url);// 添加入口URL到队列
+        }
+
+        if($this->before_start) {
+            call_user_func($this->before_start, $this);
+        }
+
+        $this->do_collect_page();// 开始采集
+
+    }
+
+
+    private function is_scan_page($url)
+    {
+        $parseUrl = parse_url($url);
+        if(empty($parseUrl['host']) || !in_array($parseUrl['host'], $this->config['domains'])) {
+            return false;
+        }
+        return true;
+    }
+
+    private function add_scan_url($url)
+    {
+        if(in_array($url, $this->queue)) {
+            return true;
+        }
+        $this->queue[] = $url;
+        return true;
+    }
+
+    private function do_collect_page()
+    {
+        while($this->queue_size()) {
+            $this->collect_page();   
+        }
+    }
+
+    private function queue_size()
+    {
+        return count($this->queue);
+    }
+
+    private function collect_page()
+    {
+        if(empty($this->queue)) {
+            return false;
+        }
+        $url = array_shift($this->queue);;
+        $html = $this->request($url);
+        // echo($html);
+        file_put_contents('./data/html/' . md5($url), $html);
+    }
+
+    private function request($url, $link = array())
+    {
+        $client = new \GuzzleHttp\Client();
+        $res = $client->request('GET', $url);
+
+        $html = $res->getBody();
+        $httpCode = $res->getStatusCode();
+        if($httpCode != 200) {
+            Log::info("statusCode = $httpCode");
+            print_r($res);    
+        }
+
+        return $html;
     }
 
 }

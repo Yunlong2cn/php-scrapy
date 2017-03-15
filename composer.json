@@ -6,9 +6,21 @@
             "email": "384345134@qq.com"
         }
     ],
-    "minimum-stability": "dev",
-    "require": {},
+    "minimum-stability": "stable",
+    "require": {
+        "guzzlehttp/guzzle": "^6.2"
+    },
     "autoload": {
-        "psr-4": { "yunlong2cn\\spider\\": "" }
-    }
+        "psr-4": { 
+            "yunlong2cn\\spider\\": ""
+        }
+    },
+    "repositories": [
+        {
+            "packagist": false
+        }, {
+            "type": "composer",
+            "url": "https://packagist.phpcomposer.com"
+        }
+    ]
 }
