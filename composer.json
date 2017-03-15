@@ -1,0 +1,11 @@
+{
+    "name": "yunlong2cn/yii2-spider",
+    "authors": [
+        {
+            "name": "Yunlong",
+            "email": "384345134@qq.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
