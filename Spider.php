@@ -2,6 +2,8 @@
 namespace yunlong2cn\spider;
 
 use Yii;
+use phpQuery;
+use yii\mongodb\Query;
 
 
 class Spider
@@ -66,8 +68,8 @@ class Spider
 
     
     // http://www.51wangdai.com/know/p/1
-    // $listUrlPatterns = ['http://www.51wangdai.com/know/p/\d+'];
-    private $listUrlPatterns; // 数组类型，定义列表页 URL 规则
+    // $list_url_regexs = ['http://www.51wangdai.com/know/p/\d+'];
+    private $list_url_regexs; // 数组类型，定义列表页 URL 规则
 
 
     // http://www.51wangdai.com/cx6932.html
@@ -104,7 +106,9 @@ class Spider
 
 
     
-    private $config = [];
+    private static $config = [
+        'max_depth' => 0
+    ];
 
 
     // 回调
@@ -114,18 +118,20 @@ class Spider
 
     public function __construct($config)
     {
-        $this->config = array_merge($this->config, $config);
+        self::$config = array_merge(self::$config, $config);
     }
 
     public function start()
     {
         
-        if(empty($this->config['scan_urls'])) {
+        if(empty(self::$config['scan_urls'])) {
             Log::error("未配置入口 URL");exit;
         }
 
-        foreach ($this->config['scan_urls'] as $url) {
-            if(!$this->is_scan_page($url)) {// 检查入口 URL 是否正确
+        
+        // 检查入口 URL 是否正确
+        foreach (self::$config['scan_urls'] as $url) {
+            if(!$this->is_scan_page($url)) {
                 Log::error("入口 URL = {$url}，不匹配当前已配置域名范围");
                 exit;
             }
@@ -137,7 +143,7 @@ class Spider
             Log::$log_show = $this->logShow;
         }
 
-        foreach ($this->config['scan_urls'] as $url) {
+        foreach (self::$config['scan_urls'] as $url) {
             $this->add_scan_url($url);// 添加入口URL到队列
         }
 
@@ -147,31 +153,80 @@ class Spider
 
         $this->do_collect_page();// 开始采集
 
+        Log::info('恭喜，采集完成');
+
     }
 
 
     private function is_scan_page($url)
     {
         $parseUrl = parse_url($url);
-        if(empty($parseUrl['host']) || !in_array($parseUrl['host'], $this->config['domains'])) {
+        if(empty($parseUrl['host']) || !in_array($parseUrl['host'], self::$config['domains'])) {
             return false;
         }
         return true;
     }
 
-    private function add_scan_url($url)
+    /**
+     * 添加入口 URL
+     * @param url string
+     * @param option array
+     * @param repeat boolean 是否允许重复
+     * @return boolean
+     */
+    private function add_scan_url($url, $option = [], $repeat = false, $depth = 0)
     {
-        if(in_array($url, $this->queue)) {
-            return true;
+        $task = $option;
+        $task['url'] = $url;
+        $task['url_type'] = 'scan_page';
+        $task['depth'] = $depth;
+
+
+        if($this->is_list_page($url)) {
+            $task['url_type'] = 'list_page';
+        } elseif($this->is_content_page($url)) {
+            $task['url_type'] = 'content_page';
         }
-        $this->queue[] = $url;
-        return true;
+
+        // 只将想要的链接添加到任务，可优化为全站采集
+        if(!in_array($task['url_type'], ['list_page', 'content_page'])) {
+            return false;
+        }
+
+
+        return Queue::push($task);
+    }
+
+    // 添加 url 到队列
+    private function add_url($url, $option = [], $depth = 0)
+    {
+        return $this->add_scan_url($url, $option, false, $depth);
+    }
+
+    private function is_list_page($url)
+    {
+        if(isset(self::$config['list_url_regexes'])) foreach (self::$config['list_url_regexes'] as $regex) {
+            if(preg_match("~{$regex}~is", $url)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function is_content_page($url)
+    {
+        if(isset(self::$config['content_url_regexes'])) foreach (self::$config['content_url_regexes'] as $regex) {
+            if(preg_match("~{$regex}~is", $url)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function do_collect_page()
     {
-        while($this->queue_size()) {
-            $this->collect_page();   
+        while(Queue::size()) {
+            $this->collect_page();
         }
     }
 
@@ -182,16 +237,196 @@ class Spider
 
     private function collect_page()
     {
-        if(empty($this->queue)) {
+        if(!Queue::size()) {
             return false;
         }
-        $url = array_shift($this->queue);;
-        $html = $this->request($url);
-        // echo($html);
-        file_put_contents('./data/html/' . md5($url), $html);
+        Log::debug('当前任务数：' . Queue::size());
+        $task = Queue::get();
+        $url = $task['url'];
+        
+        // 任务取出来以后，看一下是否允许采集
+        // 根据 url 去数据库中查一下，当前页面是否在之前被采集过
+        if($one = (new Query)->from(self::$config['export']['table'])->where([
+            'url' => $url
+        ])->one()) {
+            $fields['_id'] = $one['_id']->__tostring();
+            if(!self::$config['is_allow_update']) {
+                Log::info('跳过任务，不允许更新已采集内容');
+                return false;
+            }
+        }
+
+        Log::info("取出任务，准备采集 url = $url, url_type = {$task['url_type']}");
+
+        $html = $this->request($task['url']);
+        if(!$html) return false;
+        
+
+        // 当前正在爬取的网页页面的对象
+        $page = [
+            'url' => $url,
+            'raw' => $html
+        ];
+        unset($html);// 释放内存
+
+
+        // 是否在当前页面提取URL并发现待爬取页面
+        $is_find_page = true;
+        if($is_find_page) {
+            if(0 == self::$config['max_depth']) {
+                $this->getUrls($page['raw'], $url);
+            }
+        }
+
+
+        // 如果是内容页面，分析提取页面中的字段
+        if('content_page' == $task['url_type']) {
+            $fields = $this->parseField($page['raw']);
+            $fields['url'] = $url;
+            if(self::$config['export'] && $fields) {
+                if($this->save($fields, self::$config['export'])) {
+                    Log::info('保存数据成功');
+                } else {
+                    Log::warn('保存数据失败');
+                }
+            }
+        }
     }
 
-    private function request($url, $link = array())
+    /**
+     * 保存数据
+     * @param $data array 要保存的数据
+     * @param $conf array 配置数据保存的位置
+
+     * $conf = ['type' => 'db', 'table' => 'platforms']
+     * $conf = ['type' => 'csv', 'file' => 'platforms.csv']
+
+     * @return unknow_type
+     */
+    private function save($data, $conf = [])
+    {
+        if('db' == $conf['type']) {
+            return Yii::$app->mongodb->getCollection($conf['table'])->save($data);
+        }
+
+        return false;
+    }
+
+    /**
+     * 根据 URL 检查数据是否已经采集过了
+     * @param $url string
+     * @return boolean/_id
+     */
+    private function exists($url)
+    {
+        
+        return false;
+    }
+
+    /**
+     * 在内容中获取链接 URL
+     * @param content string 内容
+     * @param collectUrl string 内容来源 url
+     */
+    private function getUrls($content, $collectUrl)
+    {
+        $document = phpQuery::newDocumentHTML($content);
+        $urls = [];
+        foreach (pq('a') as $arg) {
+            $urls[] = pq($arg)->attr('href');
+        }
+        
+        // 处理并优化 url
+        // 1. 去除重复 url
+        $urls = array_unique($urls);
+        foreach ($urls as $k => $url) {
+            $url = trim($url);
+            if(empty($url)) {
+                continue;
+            }
+
+            // 2.优化链接地址
+            if($url = $this->formatUrl($url, $collectUrl)) {
+                $urls[$k] = $url;
+            } else {
+                unset($urls[$k]);
+            }
+        }
+        if(empty($urls)) return false;
+
+        // 把分析到的 url 放入队列
+        foreach ($urls as $url) {
+            $this->add_url($url, [
+                'header' => [
+                    'Referer' => $collectUrl
+                ]
+            ]);
+        }
+        return $urls;
+    }
+
+    private function formatUrl($url, $collectUrl)
+    {
+        if('' == $url) return false;
+
+        if(preg_match('~^(javascript:|#|\'|")~is', $url)) return false;
+
+        $parseUrl = parse_url($collectUrl);
+        if(empty($parseUrl['scheme']) || empty($parseUrl['host'])) return false;
+        // 若解析的协议不是 http/https 则移除
+        if(!in_array($parseUrl['scheme'], ['http', 'https'])) return false;
+        extract($parseUrl);//将数组中的 index 解压为变量输出 scheme, host, path, query, fragment
+
+
+        $base = $scheme . '://' . $host;
+        $basePath = $base . $path;
+
+        if('//' == substr($url, 0, 2)) {
+            $url = str_replace('//', '', $url);
+        } elseif('/' == $url[0]) {// 说明是绝对路径
+            $url = $host . $url;
+        } elseif('.' == $url[0]) {// 说明是相对路径
+            $dots = explode('/', $url); // ../../x.html
+            $paths = explode('/', $path); // /a/b/c/d
+            foreach ($dots as $dot) {
+                if('..' == $dot) {
+                    $paths = array_pop($paths);
+                    $dots = array_shift($dots);
+                }
+            }
+            $url = implode($dots, '/');
+            $path = implode($paths, '/');
+            $url = $host . $path . $url;
+        }
+        $url = $scheme . '://' . $url;
+
+        $parse_url = parse_url($url);
+        if(!empty($parse_url['host'])) {
+            if(!in_array($parse_url['host'], self::$config['domains'])) {
+                return false;
+            }
+        }
+        return $url;
+    }
+
+    private function parseField($content)
+    {
+        $document = phpQuery::newDocumentHTML($content);
+        $fields = self::$config['content_fields'];
+        $res = [];
+        foreach ($fields as $field) {
+            if(is_string($field['name'])) {
+                $res[$field['name']] = pq($field['selector'])->text();
+            } elseif(is_array($field['name'])) {
+                foreach ($field['name'] as $k => $name) {
+                    $res[$name] = pq($field['selector'])->eq($k)->text();
+                }
+            }
+        }
+        return $res;
+    }
+
+    private function request($url, $task = array())
     {
         $client = new \GuzzleHttp\Client();
         $res = $client->request('GET', $url);
