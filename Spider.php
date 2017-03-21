@@ -4,6 +4,7 @@ namespace yunlong2cn\spider;
 use Yii;
 use phpQuery;
 use yii\mongodb\Query;
+use Flow\JSONPath\JSONPath;
 
 
 class Spider
@@ -112,13 +113,21 @@ class Spider
 
 
     // 回调
-    public $before_start;
+    public $onStart = NULL;
+    public $onListPage = NULL;
+    public $onContentPage = NULL;
+    public $encodeUrl = NULL;
 
     private $queue = [];
 
     public function __construct($config)
     {
-        self::$config = array_merge(self::$config, $config);
+        self::$config = Helper::merge(self::$config, $config);
+    }
+
+    public function __set($name, $value)
+    {
+        $this->$name = $value;
     }
 
     public function start()
@@ -131,24 +140,31 @@ class Spider
         
         // 检查入口 URL 是否正确
         foreach (self::$config['scan_urls'] as $url) {
+            $url = is_array($url) ? $url['url'] : $url;
             if(!$this->is_scan_page($url)) {
                 Log::error("入口 URL = {$url}，不匹配当前已配置域名范围");
                 exit;
             }
         }
 
-        if(Help::isWin()) {// 如果是 windows 系统，则强制显示为日志
+        if(Helper::isWin()) {// 如果是 windows 系统，则强制显示为日志
             Log::$log_show = true;
         } else {
             Log::$log_show = $this->logShow;
         }
 
         foreach (self::$config['scan_urls'] as $url) {
-            $this->add_scan_url($url);// 添加入口URL到队列
+            $option = [];
+            if(is_array($url)) {
+                $option = $url;
+                $url = $url['url'];
+                unset($option['url']);
+            }
+            $this->add_scan_url($url, $option);// 添加入口URL到队列
         }
 
-        if($this->before_start) {
-            call_user_func($this->before_start, $this);
+        if($this->onStart) {
+            call_user_func($this->onStart, $this);
         }
 
         $this->do_collect_page();// 开始采集
@@ -156,7 +172,6 @@ class Spider
         Log::info('恭喜，采集完成');
 
     }
-
 
     private function is_scan_page($url)
     {
@@ -176,29 +191,39 @@ class Spider
      */
     private function add_scan_url($url, $option = [], $repeat = false, $depth = 0)
     {
-        $task = $option;
-        $task['url'] = $url;
-        $task['url_type'] = 'scan_page';
-        $task['depth'] = $depth;
+        Log::debug('准备添加 入口 地址 = ' . $url);
+
+        $link = $option;
+        $link['url'] = $url;
+        $link['url_type'] = 'scan_page';
+        $link['depth'] = $depth;
 
 
-        if($this->is_list_page($url)) {
-            $task['url_type'] = 'list_page';
-        } elseif($this->is_content_page($url)) {
-            $task['url_type'] = 'content_page';
+        if($regex = $this->is_list_page($url)) {
+            if(is_array($regex)) { // 如果是数组，则需要根据配置设置 $link
+                $link = Helper::merge($regex, $link);
+            }
+            $link['url_type'] = 'list_page';
+        } elseif($regex = $this->is_content_page($url)) {
+            if(is_array($regex)) { // 如果是数组，则需要根据配置设置 $link
+                $link = Helper::merge($regex, $link);
+            }
+            $link['url_type'] = 'content_page';
         }
 
+
         // 只将想要的链接添加到任务，可优化为全站采集
-        if(!in_array($task['url_type'], ['list_page', 'content_page'])) {
+        if(!in_array($link['url_type'], ['list_page', 'content_page'])) {
+            Log::info('不在采集范围内， url = ' . $url . ', url_type = ' . $link['url_type']);
             return false;
         }
 
 
-        return Queue::push($task);
+        return Queue::push($link);
     }
 
     // 添加 url 到队列
-    private function add_url($url, $option = [], $depth = 0)
+    public function add_url($url, $option = [], $depth = 0)
     {
         return $this->add_scan_url($url, $option, false, $depth);
     }
@@ -206,8 +231,13 @@ class Spider
     private function is_list_page($url)
     {
         if(isset(self::$config['list_url_regexes'])) foreach (self::$config['list_url_regexes'] as $regex) {
-            if(preg_match("~{$regex}~is", $url)) {
-                return true;
+            if(is_array($regex)) {
+                $regexPattern = $regex['regex'];
+            } else {
+                $regexPattern = $regex;
+            }
+            if(preg_match("~{$regexPattern}~is", $url, $match)) {
+                return $regex;
             }
         }
         return false;
@@ -216,8 +246,14 @@ class Spider
     private function is_content_page($url)
     {
         if(isset(self::$config['content_url_regexes'])) foreach (self::$config['content_url_regexes'] as $regex) {
-            if(preg_match("~{$regex}~is", $url)) {
-                return true;
+            if(is_array($regex)) {
+                $regexPattern = $regex['regex'];
+            } else {
+                $regexPattern = $regex;
+            }
+
+            if(preg_match("~{$regexPattern}~is", $url)) {
+                return $regex;
             }
         }
         return false;
@@ -243,7 +279,8 @@ class Spider
         Log::debug('当前任务数：' . Queue::size());
         $task = Queue::get();
         $url = $task['url'];
-        
+        $request = isset($task['request']) ? $task['request'] : [];
+
         // 任务取出来以后，看一下是否允许采集
         // 根据 url 去数据库中查一下，当前页面是否在之前被采集过
         if($one = (new Query)->from(self::$config['export']['table'])->where([
@@ -258,7 +295,7 @@ class Spider
 
         Log::info("取出任务，准备采集 url = $url, url_type = {$task['url_type']}");
 
-        $html = $this->request($task['url']);
+        $html = $this->request($task['url'], $request);
         if(!$html) return false;
         
 
@@ -272,24 +309,51 @@ class Spider
 
         // 是否在当前页面提取URL并发现待爬取页面
         $is_find_page = true;
+        
         if($is_find_page) {
             if(0 == self::$config['max_depth']) {
-                $this->getUrls($page['raw'], $url);
+                $this->getUrls($page['raw'], $task);
+            }
+        }
+
+        if('list_page' == $task['url_type']) {
+            if($this->onListPage) {
+                Log::info('触发回调函数 onListPage');
+                call_user_func($this->onListPage, $page, $this);
             }
         }
 
 
         // 如果是内容页面，分析提取页面中的字段
         if('content_page' == $task['url_type']) {
-            $fields = $this->parseField($page['raw']);
-            $fields['url'] = $url;
-            if(self::$config['export'] && $fields) {
-                if($this->save($fields, self::$config['export'])) {
-                    Log::info('保存数据成功');
-                } else {
-                    Log::warn('保存数据失败');
+            if($fields = $this->parseField($page['raw'], $task)) {
+                
+                $conf = isset($task['export']) ? $task['export'] : self::$config['export'];
+
+                // 处理预保存数据
+                foreach ($fields as $k => $field) {
+                    $fields[$k] = Helper::merge($fields[$k], [
+                        'url' => $url,
+                        'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
+                    ]);
+
+                    if(isset($task['data'])) {// 如果配置了默认数据，则自动合并
+                        Log::info('=================自动合并默认数据====================');
+                        $fields[$k] = Helper::merge($fields[$k], $task['data']);
+                    }
+
+                    if($conf && $fields[$k]) {
+                        if($this->save($fields[$k], $conf)) {
+                            Log::info('保存数据成功');
+                        } else {
+                            Log::warn('保存数据失败');
+                        }
+                    }
+
                 }
+                unset($fields);
             }
+
         }
     }
 
@@ -313,6 +377,25 @@ class Spider
     }
 
     /**
+     * 批量保存数据
+     * @param $data array 要保存的数据
+     * @param $conf array 配置数据保存的位置
+
+     * $conf = ['type' => 'db', 'table' => 'platforms']
+     * $conf = ['type' => 'csv', 'file' => 'platforms.csv']
+
+     * @return unknow_type
+     */
+    private function batchInsert($data, $conf = [])
+    {
+        if('db' == $conf['type']) {
+            return Yii::$app->mongodb->getCollection($conf['table'])->batchInsert($data);
+        }
+
+        return false;
+    }
+
+    /**
      * 根据 URL 检查数据是否已经采集过了
      * @param $url string
      * @return boolean/_id
@@ -326,10 +409,84 @@ class Spider
     /**
      * 在内容中获取链接 URL
      * @param content string 内容
-     * @param collectUrl string 内容来源 url
+     * @param link array
      */
-    private function getUrls($content, $collectUrl)
+    private function getUrls($content, $link)
     {
+        $collectUrl = $link['url'];
+        $selector_type = isset($link['selector_type']) ? strtolower($link['selector_type']) : 'css';
+
+        if('jsonpath' == $selector_type) {
+            if(!isset($link['fields'])) {
+                Log::error('启用 JSONPath 时，同时需要设置 fields 字段');
+                return false;
+            }
+            if(!isset($link['return_url'])) return false;
+            if(empty($link['return_url'])) return false;
+            $data = json_decode($content, 1);
+            $query = new JSONPath($data);
+            
+            $fields = [];
+            foreach ($link['fields'] as $field) {
+                $value = $query->find($field['selector'])->data();
+
+                if(is_array($value) && isset($field['callback'])) {
+                    $callback = $field['callback'];
+                    $value = array_map(function($d) use ($callback, $value) {
+                        $res = $callback($d);
+                        Log::info('res = ' . $res);
+                        return $res;
+                    }, $value);
+                }
+
+                $fields[$field['name']] = $value;
+            }
+            
+            $returnUrls = [];
+            
+            if(is_string($link['return_url'])) {
+                $return_url[] = $link['return_url'];
+            } else {
+                $return_url = $link['return_url'];
+            }
+            
+            foreach ($return_url as $index => $returnUrl) {
+                $returnUrlTpl = is_array($returnUrl) ? $returnUrl['url'] : $returnUrl;
+                foreach ($fields as $key => $field) {
+                    foreach ($field as $k => $f) {
+                        if(!strstr($returnUrlTpl, '{'. $key .'}')) continue;
+                        Log::debug('准备替换字段：' . $key . ' 为 ' . $f);
+                        $before = empty($returnUrls[$index][$k]['url']) ? $returnUrlTpl : $returnUrls[$index][$k]['url'];
+                        Log::debug('替换前URL = ' . $before);
+                        if(!is_array($f)) {
+                            $returnUrls[$index][$k]['url'] = str_replace("{{$key}}", $f, $before);
+                            Log::debug('替换后URL = ' . $returnUrls[$index][$k]['url']);
+                        }
+                    }
+                }
+            }
+
+            
+
+            // 添加 url 到队列
+            foreach ($returnUrls as $returnUrl) {
+                foreach ($returnUrl as $url) {
+                    $this->add_url($url['url'], [
+                        'request' => [
+                            'header' => [
+                                'Referer' => $collectUrl
+                            ]
+                        ],
+                        'data' => [
+                            'doc_urlmd5' => md5($collectUrl)
+                        ]
+                    ]);
+                }
+            }
+
+            return true;
+        }
+
         $document = phpQuery::newDocumentHTML($content);
         $urls = [];
         foreach (pq('a') as $arg) {
@@ -409,10 +566,53 @@ class Spider
         return $url;
     }
 
-    private function parseField($content)
+    private function parseField($content, $option = [])
     {
+        if(isset($option['selector_type']) && 'jsonpath' == $option['selector_type']) {
+            $data = json_decode($content, 1);
+            $query = new JSONPath($data);
+            
+            $fields = [];
+            $value = NULL;
+            foreach ($option['fields'] as $field) {
+                $value = $query->find($field['selector'])->data();
+
+                $tempValue = NULL;
+                foreach ($value as $k => $v) {
+                    $tempValue = $v;
+                    if(isset($field['required']) && $field['required'] && empty($tempValue)) {
+                        Log::debug('必需的字段 '. $field['name'] .' 为空，跳过此数据');
+                        return false;
+                    }
+
+                    if(isset($field['save']) && $field['save'] == false) {
+                        Log::debug('不保存的字段 name = ' . $field['name']);
+                        continue;
+                    }
+
+                    if(is_null($tempValue)) {
+                        Log::debug('字段 name = ' . $field['name'] . ' 为 NULL');
+                        continue;
+                    }
+
+                    $tempValue = method_exists($tempValue, 'data') ? $tempValue->data() : $tempValue;
+
+                    if(isset($field['callback'])) {
+                        $callback = $field['callback'];
+                        $tempValue = $callback($tempValue);
+                    }
+
+                    $fields[$k][$field['name']] = $tempValue;
+                }
+                unset($tempValue);
+            }
+            unset($value);
+            
+            return $fields;
+        }
+
         $document = phpQuery::newDocumentHTML($content);
-        $fields = self::$config['content_fields'];
+        $fields = self::$config['fields'];
         $res = [];
         foreach ($fields as $field) {
             if(is_string($field['name'])) {
@@ -426,19 +626,37 @@ class Spider
         return $res;
     }
 
-    private function request($url, $task = array())
+    public static function request($url, $args = [], $body = true)
     {
         $client = new \GuzzleHttp\Client();
-        $res = $client->request('GET', $url);
+        $method = isset($args['method']) ? strtoupper($args['method']) : 'GET';
+        Log::debug("method = $method");
+        $option = [
+            'allow_redirects' => true
+        ];
+        if(isset($args['data'])) $option['form_params'] = $args['data'];
 
-        $html = $res->getBody();
-        $httpCode = $res->getStatusCode();
-        if($httpCode != 200) {
-            Log::info("statusCode = $httpCode");
-            print_r($res);    
+        $option = Helper::merge($option, $args);
+        
+        try {
+            $response = $client->request($method, $url, $option);
+        } catch (\GuzzleHttp\Exception\ServerException $e) {
+            Log::info('网络请求异常， URL = ' . $url);
+            return false;
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            Log::info('GuzzleHttp\Exception\ClientException');
+            return false;
         }
 
-        return $html;
+        
+        $httpCode = $response->getStatusCode();
+        if($httpCode != 200) {
+            Log::info("statusCode = $httpCode");
+        }
+
+        $return = $body ? $response->getBody() : $response;
+
+        return $return;
     }
 
 }
