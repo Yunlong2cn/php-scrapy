@@ -36,4 +36,22 @@ class Helper
 
         return $res;
     }
+
+    public static function str2unix($time)
+    {
+        $unixTime = 0;
+        if(strstr($time, '刚')) return time();
+        if(preg_match('~(\d+)\s?秒~is', $time, $match)) {
+            $unixTime = time() - $match[1];
+            Log::debug($time . ' 转换为 UNIX 后 = ' . date('Y-m-d H:i:s', $unixTime));
+        } elseif(preg_match('~(\d+)\s?分~is', $time, $match)) {
+            $unixTime = time() - $match[1] * 60;
+            Log::debug($time . ' 转换为 UNIX 后 = ' . date('Y-m-d H:i:s', $unixTime));
+        } elseif(is_numeric($time)) {
+            $unixTime = $time;
+        } else {
+            $unixTime = strtotime($time);
+        }
+        return $unixTime;
+    }
 }

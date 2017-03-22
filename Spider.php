@@ -167,9 +167,19 @@ class Spider
             call_user_func($this->onStart, $this);
         }
 
+        if(!empty(self::$config['name'])) {
+            Log::info('---------------------');
+            Log::info('- 爬虫名称： 【'. self::$config['name'] .'】');
+            Log::info('---------------------');
+        } else {
+            Log::error('请先设置爬虫名称');exit;
+        }
+        
+        usleep(1000);
         $this->do_collect_page();// 开始采集
 
         Log::info('恭喜，采集完成');
+        usleep(1000);
 
     }
 
@@ -337,8 +347,13 @@ class Spider
                         'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
                     ]);
 
+                    if(!empty(self::$config['data'])) {
+                        Log::info('自动合并当前配置默认数据');
+                        $fields[$k] = Helper::merge($fields[$k], self::$config['data']);
+                    }
+
                     if(isset($task['data'])) {// 如果配置了默认数据，则自动合并
-                        Log::info('=================自动合并默认数据====================');
+                        Log::info('自动合并当前任务默认数据');
                         $fields[$k] = Helper::merge($fields[$k], $task['data']);
                     }
 
@@ -371,6 +386,10 @@ class Spider
     {
         if('db' == $conf['type']) {
             return Yii::$app->mongodb->getCollection($conf['table'])->save($data);
+        } else {
+            Log::info('++++++++++ 分析结果 ++++++++++');
+            Log::info('+');
+            Log::info(serialize($data));
         }
 
         return false;
@@ -428,6 +447,7 @@ class Spider
             
             $fields = [];
             foreach ($link['fields'] as $field) {
+                if(empty($field['selector'])) continue;
                 $value = $query->find($field['selector'])->data();
 
                 if(is_array($value) && isset($field['callback'])) {
@@ -575,11 +595,19 @@ class Spider
             $fields = [];
             $value = NULL;
             foreach ($option['fields'] as $field) {
-                $value = $query->find($field['selector'])->data();
+                if(empty($field['selector'])) {
+                    if(!is_array($value)) {
+                        Log::debug('不能将未设置 selector 的字段放在第一位');exit;
+                    }
+                } else {
+                    $value = $query->find($field['selector'])->data();
+                }
 
                 $tempValue = NULL;
                 foreach ($value as $k => $v) {
-                    $tempValue = $v;
+
+                    $tempValue = empty($field['selector']) ? empty($field['value']) ? '' : $field['value'] : $v;
+
                     if(isset($field['required']) && $field['required'] && empty($tempValue)) {
                         Log::debug('必需的字段 '. $field['name'] .' 为空，跳过此数据');
                         return false;
@@ -602,6 +630,8 @@ class Spider
                         $tempValue = $callback($tempValue);
                     }
 
+                    $tempValue = empty($tempValue) ? empty($field['value']) ? '' : $field['value'] : $tempValue;
+
                     $fields[$k][$field['name']] = $tempValue;
                 }
                 unset($tempValue);
@@ -623,7 +653,7 @@ class Spider
                 }
             }
         }
-        return $res;
+        return [$res];
     }
 
     public static function request($url, $args = [], $body = true)
