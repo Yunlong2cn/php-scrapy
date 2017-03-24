@@ -4,7 +4,10 @@ namespace yunlong2cn\spider;
 use Yii;
 use phpQuery;
 use yii\mongodb\Query;
+
 use Flow\JSONPath\JSONPath;
+
+use League\Csv\Writer;
 
 
 class Spider
@@ -120,6 +123,8 @@ class Spider
 
     private $queue = [];
 
+    private $csvHandle = NULL;
+
     public function __construct($config)
     {
         self::$config = Helper::merge(self::$config, $config);
@@ -176,7 +181,10 @@ class Spider
         }
         
         usleep(1000);
+
         $this->do_collect_page();// 开始采集
+
+        if($this->csvHandle) $this->csvHandle->output($conf['file']);
 
         Log::info('恭喜，采集完成');
         usleep(1000);
@@ -201,6 +209,8 @@ class Spider
      */
     private function add_scan_url($url, $option = [], $repeat = false, $depth = 0)
     {
+        if(empty(trim($url))) return false;
+
         Log::debug('准备添加 入口 地址 = ' . $url);
 
         $link = $option;
@@ -220,7 +230,6 @@ class Spider
             }
             $link['url_type'] = 'content_page';
         }
-
 
         // 只将想要的链接添加到任务，可优化为全站采集
         if(!in_array($link['url_type'], ['list_page', 'content_page'])) {
@@ -262,7 +271,10 @@ class Spider
                 $regexPattern = $regex;
             }
 
+            // Log::info('@# 准备匹配规则 ' . $regexPattern);
+            // Log::info('@# 待匹配 URL = ' . $url);
             if(preg_match("~{$regexPattern}~is", $url)) {
+                // Log::info('@# 匹配成功');
                 return $regex;
             }
         }
@@ -292,18 +304,21 @@ class Spider
         $request = isset($task['request']) ? $task['request'] : [];
 
         // 任务取出来以后，看一下是否允许采集
-        // 根据 url 去数据库中查一下，当前页面是否在之前被采集过
-        if($one = (new Query)->from(self::$config['export']['table'])->where([
-            'url' => $url
-        ])->one()) {
-            $fields['_id'] = $one['_id']->__tostring();
-            if(!self::$config['is_allow_update']) {
-                Log::info('跳过任务，不允许更新已采集内容');
-                return false;
+        if('db' == self::$config['export']['type']) {
+            // 根据 url 去数据库中查一下，当前页面是否在之前被采集过
+            if($one = (new Query)->from(self::$config['export']['table'])->where([
+                'url' => $url
+            ])->one()) {
+                $fields['_id'] = $one['_id']->__tostring();
+                if(!self::$config['is_allow_update']) {
+                    Log::info('跳过任务，不允许更新已采集内容');
+                    return false;
+                }
             }
         }
+        
 
-        Log::info("取出任务，准备采集 url = $url, url_type = {$task['url_type']}");
+        Log::info("Get task，准备采集 url = $url, url_type = {$task['url_type']}");
 
         $html = $this->request($task['url'], $request);
         if(!$html) return false;
@@ -349,12 +364,29 @@ class Spider
 
                     if(!empty(self::$config['data'])) {
                         Log::info('自动合并当前配置默认数据');
-                        $fields[$k] = Helper::merge($fields[$k], self::$config['data']);
+                        $globalData = self::$config['data'];
+                        foreach ($globalData as $key => $data) {
+                            if(is_string($data)) {
+                                $globalData[$key] = $data;
+                            } else {
+                                $globalData[$key] = call_user_func($data);
+                            }
+                        }
+                        $fields[$k] = Helper::merge($fields[$k], $globalData);
                     }
 
                     if(isset($task['data'])) {// 如果配置了默认数据，则自动合并
                         Log::info('自动合并当前任务默认数据');
-                        $fields[$k] = Helper::merge($fields[$k], $task['data']);
+                        $taskData = $task['data'];
+                        foreach ($taskData as $key => $data) {
+                            if(is_string($data)) {
+                                $taskData[$key] = $data;
+                            } else {
+                                $taskData[$key] = call_user_func($data);
+                            }
+                        }
+
+                        $fields[$k] = Helper::merge($fields[$k], $taskData);
                     }
 
                     if($conf && $fields[$k]) {
@@ -386,6 +418,9 @@ class Spider
     {
         if('db' == $conf['type']) {
             return Yii::$app->mongodb->getCollection($conf['table'])->save($data);
+        } elseif('csv' == $conf['type']) {
+            if($this->csvHandle === NULL) $this->csvHandle = Writer::createFromFileObject(new \SplTempFileObject());
+            return $this->csvHandle->insertOne($data);
         } else {
             Log::info('++++++++++ 分析结果 ++++++++++');
             Log::info('+');
@@ -554,9 +589,8 @@ class Spider
         if(!in_array($parseUrl['scheme'], ['http', 'https'])) return false;
         extract($parseUrl);//将数组中的 index 解压为变量输出 scheme, host, path, query, fragment
 
-
         $base = $scheme . '://' . $host;
-        $basePath = $base . $path;
+        // $basePath = $base . $path;
 
         if('//' == substr($url, 0, 2)) {
             $url = str_replace('//', '', $url);
@@ -575,11 +609,14 @@ class Spider
             $path = implode($paths, '/');
             $url = $host . $path . $url;
         }
-        $url = $scheme . '://' . $url;
+        $url = strstr($url, 'http') ? $url : $scheme . '://' . $url;
+
+        Log::info('重组后 URL = ' . $url);
 
         $parse_url = parse_url($url);
         if(!empty($parse_url['host'])) {
             if(!in_array($parse_url['host'], self::$config['domains'])) {
+                Log::info('URL 不在域名范围内');
                 return false;
             }
         }
@@ -588,57 +625,74 @@ class Spider
 
     private function parseField($content, $option = [])
     {
-        if(isset($option['selector_type']) && 'jsonpath' == $option['selector_type']) {
-            $data = json_decode($content, 1);
-            $query = new JSONPath($data);
-            
-            $fields = [];
-            $value = NULL;
-            foreach ($option['fields'] as $field) {
-                if(empty($field['selector'])) {
-                    if(!is_array($value)) {
-                        Log::debug('不能将未设置 selector 的字段放在第一位');exit;
+        
+        if(empty($option['fields']) && empty(self::$config['fields'])) {
+            Log::info('保存内容到 数据库');
+            $document = phpQuery::newDocumentHTML($content);
+            $html = $document->html();
+            $title = $document->find('title')->text();
+            $text = $document->find('body')->text();
+
+            return [[
+                'title' => $title,
+                'text' => $text,
+                'html' => $html
+            ]];
+        }
+
+        if(isset($option['selector_type'])) {
+            if('jsonpath' == $option['selector_type']) {
+                $data = json_decode($content, 1);
+                $query = new JSONPath($data);
+                
+                $fields = [];
+                $value = NULL;
+                foreach ($option['fields'] as $field) {
+                    if(empty($field['selector'])) {
+                        if(!is_array($value)) {
+                            Log::debug('不能将未设置 selector 的字段放在第一位');exit;
+                        }
+                    } else {
+                        $value = $query->find($field['selector'])->data();
                     }
-                } else {
-                    $value = $query->find($field['selector'])->data();
+
+                    $tempValue = NULL;
+                    foreach ($value as $k => $v) {
+
+                        $tempValue = empty($field['selector']) ? empty($field['value']) ? '' : $field['value'] : $v;
+
+                        if(isset($field['required']) && $field['required'] && empty($tempValue)) {
+                            Log::debug('必需的字段 '. $field['name'] .' 为空，跳过此数据');
+                            return false;
+                        }
+
+                        if(isset($field['save']) && $field['save'] == false) {
+                            Log::debug('不保存的字段 name = ' . $field['name']);
+                            continue;
+                        }
+
+                        if(is_null($tempValue)) {
+                            Log::debug('字段 name = ' . $field['name'] . ' 为 NULL');
+                            continue;
+                        }
+
+                        $tempValue = method_exists($tempValue, 'data') ? $tempValue->data() : $tempValue;
+
+                        if(isset($field['callback'])) {
+                            $callback = $field['callback'];
+                            $tempValue = $callback($tempValue);
+                        }
+
+                        $tempValue = empty($tempValue) ? empty($field['value']) ? '' : $field['value'] : $tempValue;
+
+                        $fields[$k][$field['name']] = $tempValue;
+                    }
+                    unset($tempValue);
                 }
-
-                $tempValue = NULL;
-                foreach ($value as $k => $v) {
-
-                    $tempValue = empty($field['selector']) ? empty($field['value']) ? '' : $field['value'] : $v;
-
-                    if(isset($field['required']) && $field['required'] && empty($tempValue)) {
-                        Log::debug('必需的字段 '. $field['name'] .' 为空，跳过此数据');
-                        return false;
-                    }
-
-                    if(isset($field['save']) && $field['save'] == false) {
-                        Log::debug('不保存的字段 name = ' . $field['name']);
-                        continue;
-                    }
-
-                    if(is_null($tempValue)) {
-                        Log::debug('字段 name = ' . $field['name'] . ' 为 NULL');
-                        continue;
-                    }
-
-                    $tempValue = method_exists($tempValue, 'data') ? $tempValue->data() : $tempValue;
-
-                    if(isset($field['callback'])) {
-                        $callback = $field['callback'];
-                        $tempValue = $callback($tempValue);
-                    }
-
-                    $tempValue = empty($tempValue) ? empty($field['value']) ? '' : $field['value'] : $tempValue;
-
-                    $fields[$k][$field['name']] = $tempValue;
-                }
-                unset($tempValue);
+                unset($value);
+                
+                return $fields;
             }
-            unset($value);
-            
-            return $fields;
         }
 
         $document = phpQuery::newDocumentHTML($content);
@@ -646,10 +700,20 @@ class Spider
         $res = [];
         foreach ($fields as $field) {
             if(is_string($field['name'])) {
-                $res[$field['name']] = pq($field['selector'])->text();
+                $temp = pq($field['selector'])->text();
+                if(!empty($field['callback'])) {
+                    $temp = call_user_func($field['callback'], $temp);
+                }
+                if(!empty($field['required']) && empty($temp)) return false;
+                $res[$field['name']] = $temp;
             } elseif(is_array($field['name'])) {
                 foreach ($field['name'] as $k => $name) {
-                    $res[$name] = pq($field['selector'])->eq($k)->text();
+                    $temp = pq($field['selector'])->eq($k)->text();
+                    if(!empty($field['callback'])) {
+                        $temp = call_user_func($field['callback'], $temp);
+                    }
+                    if(!empty($field['required']) && empty($temp)) return false;
+                    $res[$name] = $temp;
                 }
             }
         }
@@ -662,7 +726,9 @@ class Spider
         $method = isset($args['method']) ? strtoupper($args['method']) : 'GET';
         Log::debug("method = $method");
         $option = [
-            'allow_redirects' => true
+            'allow_redirects' => [
+                'max' => 10
+            ]
         ];
         if(isset($args['data'])) $option['form_params'] = $args['data'];
 
@@ -670,11 +736,17 @@ class Spider
         
         try {
             $response = $client->request($method, $url, $option);
+            // $response->getParams()->set('redirect.max', 100);
         } catch (\GuzzleHttp\Exception\ServerException $e) {
             Log::info('网络请求异常， URL = ' . $url);
             return false;
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             Log::info('GuzzleHttp\Exception\ClientException');
+            return false;
+        } catch(\GuzzleHttp\Exception\TooManyRedirectsException $e) {
+            Log::debug($e->getMessage());
+            print_r($e->getRequest());
+            Log::warn('重定向次数太多');
             return false;
         }
 
@@ -685,6 +757,8 @@ class Spider
         }
 
         $return = $body ? $response->getBody() : $response;
+
+        // echo($return);
 
         return $return;
     }
