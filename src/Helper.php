@@ -1,6 +1,7 @@
 <?php
-namespace yunlong2cn\spider;
+namespace yunlong2cn\ps;
 
+use SuperClosure\Serializer;
 
 class Helper
 {
@@ -72,5 +73,34 @@ class Helper
             }
         }
         return join("", $ar);
+    }
+
+    /**
+     * 处理数组中包含回调函数的参数
+     * @param $config array 待处理数组
+     * @param $serialize boolean 是否返回序列化后的内容，默认只处理数组中回调函数部分
+     *
+     * @return array | serialize
+     **/
+    public static function serialize($config, $serialize = false)
+    {
+        $serializer = new Serializer;
+
+        foreach ($config as $key => $value) {
+            if(is_array($value)) {
+                $config[$key] = self::serialize($value);
+            } elseif(is_callable($value)) {
+                $config[$key] = $serializer->serialize($value);
+            } else {
+                $config[$key] = $value;
+            }
+        }
+
+        return $serialize ? serialize($config) : $config;
+    }
+
+    public static function unserialize($data, $serialize = false)
+    {
+        return (new Serializer)->unserialize($data);
     }
 }

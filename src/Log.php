@@ -1,5 +1,5 @@
 <?php
-namespace yunlong2cn\spider;
+namespace yunlong2cn\ps;
 
 
 class Log
@@ -17,9 +17,10 @@ class Log
         self::out($message, 'debug');
     }
 
-    public static function error($message)
+    public static function error($message, $stop = false)
     {
         self::out($message, 'error');
+        if($stop) exit;
     }
 
     public static function warn($message)

@@ -1,0 +1,128 @@
+#!/usr/bin/env php
+<?php
+
+defined('PS_DEBUG') or define('PS_DEBUG', true);
+defined('PS_ENV') or define('PS_ENV', 'dev');
+
+require(__DIR__ . '/vendor/autoload.php');
+
+
+// use yunlong2cn\ps\Task;
+// use yunlong2cn\ps\Scheduler;
+// use yunlong2cn\ps\SystemCall;
+
+
+
+yunlong2cn\ps\Router::run([]);
+
+// ./scrapy test/index 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// print_r($_SERVER['argc']);
+// print_r($_SERVER['argv']);
+
+
+
+
+// $queue = new SplQueue();
+// $queue->push('aaa');
+// $queue->push('bbb');
+
+// $queue->pop();
+
+// print_r($queue);
+
+
+
+// function getTaskId()
+// {
+//     return new SystemCall(function(Task $task, Scheduler $scheduler) {
+//         $task->setSendValue($task->getTaskId());
+//         $scheduler->schedule($task);
+//     });
+// }
+
+
+// function task($max)
+// {
+//     $tid = yield getTaskId();
+//     $childTid = yield newTask(childTask());
+//     for ($i=0; $i < $max; $i++) { 
+        
+//         if(3 == $i) yield killTask($childTid);
+
+//         echo "This task $tid , iteration i = $i" . PHP_EOL;
+//         yield;
+//     }
+// }
+
+
+
+// function childTask()
+// {
+//     $tid = yield getTaskId();
+//     while (true) {
+//         echo "This is child task $tid alive...." . PHP_EOL;
+//         sleep(1);
+//         yield;
+//     }
+// }
+
+
+
+// function newTask(Generator $coroutine)
+// {
+//     return new SystemCall(function(Task $task, Scheduler $scheduler) use ($coroutine) {
+//         $task->setSendValue($scheduler->newTask($coroutine));
+//         $scheduler->schedule($task);
+//     });
+// }
+
+
+
+// function killTask($tid)
+// {
+//     return new SystemCall(function(Task $task, Scheduler $scheduler) use ($tid) {
+//         $task->setSendValue($scheduler->killTask($tid));
+//         $scheduler->schedule($task);
+//     });
+// }
+
+
+// $scheduler = new Scheduler;
+
+// // $scheduler->newTask(task(10));
+// $scheduler->newTask(task(10));
+
+// $scheduler->run();
+
+
+
+
+

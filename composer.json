@@ -1,5 +1,5 @@
 {
-    "name": "yunlong2cn/yii2-spider",
+    "name": "yunlong2cn/php-scrapy",
     "authors": [
         {
             "name": "Yunlong",
@@ -10,11 +10,18 @@
     "require": {
         "guzzlehttp/guzzle": "^6.2",
         "electrolinux/phpquery": "^0.9.6",
-        "flow/jsonpath": "^0.3.4"
+        "flow/jsonpath": "^0.3.4",
+        "mongodb/mongodb": "^1.1",
+        "nette/database": "^2.4",
+        "predis/predis": "^1.1",
+        "league/csv": "^8.2",
+        "league/flysystem": "^1.0",
+        "jeremeamia/SuperClosure": "^2.3"
     },
     "autoload": {
         "psr-4": { 
-            "yunlong2cn\\spider\\": ""
+            "yunlong2cn\\ps\\": "src",
+            "yunlong2cn\\ps\\demo\\": "demo"
         }
     },
     "repositories": [

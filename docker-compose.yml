@@ -1,0 +1,16 @@
+cli:
+  # build: ./php/cli/
+  image: snatch-php-cli
+  ports:
+    - "6070:8080"
+  volumes:
+    - ./:/data
+    - /Users/Leray/Code/snatch/php/cli/php.ini-production:/usr/local/etc/php/php.ini:ro
+  links:
+    - redis:redis-host
+redis:
+  image: daocloud.io/library/redis
+  ports:
+    - "6379:6379"
+  volumes:
+    - ./data/redis:/data
