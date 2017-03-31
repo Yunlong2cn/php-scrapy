@@ -12,5 +12,5 @@ redis:
   image: daocloud.io/library/redis
   ports:
     - "6379:6379"
-  volumes:
-    - ./data/redis:/data
+  # volumes:
+  #   - ./data/redis:/data
