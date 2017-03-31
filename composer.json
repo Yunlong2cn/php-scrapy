@@ -16,7 +16,8 @@
         "predis/predis": "^1.1",
         "league/csv": "^8.2",
         "league/flysystem": "^1.0",
-        "jeremeamia/SuperClosure": "^2.3"
+        "jeremeamia/SuperClosure": "^2.3",
+        "facebook/webdriver": "^1.4"
     },
     "autoload": {
         "psr-4": { 

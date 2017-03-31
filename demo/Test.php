@@ -12,6 +12,9 @@ use SuperClosure\Serializer;
 use yunlong2cn\ps\callback\Base;
 
 
+use Facebook\WebDriver\Remote\RemoteWebDriver;
+use Facebook\WebDriver\Remote\DesiredCapabilities;
+
 class Test
 {
     public function index($id = 1)
@@ -27,6 +30,28 @@ class Test
         }
         
         $scheduler->run();
+    }
+
+    public function webdriver($arg = 'chrome')
+    {
+        $host = 'http://'. $arg .'-host:4444/wd/hub';
+        $host = 'http://192.168.0.200:4445/wd/hub';
+        
+        if('firefox' == $arg) {
+            // Launch Firefox:
+            $driver = RemoteWebDriver::create($host, DesiredCapabilities::firefox());
+        } elseif ('chrome' == $arg) {
+            // Launch Chrome:
+            $driver = RemoteWebDriver::create($host, DesiredCapabilities::chrome());
+        } else {
+            exit('错误的浏览器驱动');
+        }      
+
+        $driver->get('https://www.baidu.com/');
+        $doc = $driver->getTitle();
+        print_r($doc);
+
+
     }
 }
 
