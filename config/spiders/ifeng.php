@@ -5,7 +5,6 @@ return [
         'http://api.iclient.ifeng.com/ClientNews?id=SYLB10,SYDT10,SYRECOMMEND'
     ],
     'domains' => ['api.iclient.ifeng.com', 'comment.ifeng.com'],
-    'queue' => 'redis@tcp://redis-host:6379',
     'is_allow_update' => false,
     'list_url_regexes' => [
         [
@@ -104,8 +103,6 @@ return [
                 ]
             ],
             'export' => [
-                'type' => 'mongo',
-                'uri' => 'mongodb://192.168.0.136:17017/vvv',
                 'table' => 'apps_comments'
             ]
         ]
@@ -113,10 +110,5 @@ return [
     'data' => [
         'media_source' => 'ifeng',
         'flag' => 0
-    ],
-    'export' => [
-        'type' => 'mongo',
-        'uri' => 'mongodb://192.168.0.136:17017/vvv',
-        'table' => 'apps_data'
     ]
 ];

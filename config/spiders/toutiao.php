@@ -5,7 +5,6 @@ return [
         'http://ic.snssdk.com/2/article/v34/stream/?category=news_hot&count=20'
     ],
     'domains' => ['ic.snssdk.com', 'www.toutiao.com'],
-    'queue' => 'redis@tcp://redis-host:6379',
     'is_allow_update' => true,
     'list_url_regexes' => [
         [
@@ -109,8 +108,6 @@ return [
                 ]
             ],
             'export' => [
-                'type' => 'mongo',
-                'uri' => 'mongodb://192.168.0.136:17017/vvv',
                 'table' => 'apps_comments'
             ]
         ]
@@ -118,10 +115,5 @@ return [
     'data' => [
         'media_source' => 'toutiao',
         'flag' => 0
-    ],
-    'export' => [
-        'type' => 'mongo',
-        'uri' => 'mongodb://192.168.0.136:17017/vvv',
-        'table' => 'apps_data'
     ]
 ];

@@ -57,10 +57,5 @@ return [
     'data' => [
         'media_source' => 'wzxc',
         'flag' => 0
-    ],
-    'export' => [
-        'type' => 'mongo',
-        'uri' => 'mongodb://192.168.0.136:17017/vvv',
-        'table' => 'apps_data'
     ]
 ];

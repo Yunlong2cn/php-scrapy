@@ -82,6 +82,10 @@ class Url
     public function fromCssPath($content, $link)
     {
         $document = phpQuery::newDocumentHTML($content);
+        if(isset($link['selector'])) {
+            $selector_content = $document->find($link['selector'])->html();
+            $document = phpQuery::newDocumentHTML($selector_content);
+        }
         $urls = [];
         foreach ($document->find('a') as $arg) {
             $urls[] = pq($arg)->attr('href');
@@ -97,56 +101,12 @@ class Url
             }
 
             // 2.优化链接地址
-            if($url = self::formatUrl($url, $link['url'])) {
+            if($url = Helper::formatUrl($url, $link['url'])) {
                 $urls[$k] = $url;
             } else {
                 unset($urls[$k]);
             }
         }
         return empty($urls) ? false : [$urls];
-    }
-
-    public static function formatUrl($url, $collect_url)
-    {
-        if('' == $url) return false;
-
-        if(preg_match('~^(javascript:|#|\'|")~is', $url)) return false;
-
-        $parseUrl = parse_url($collect_url);
-        if(empty($parseUrl['scheme']) || empty($parseUrl['host'])) return false;
-        // 若解析的协议不是 http/https 则移除
-        if(!in_array($parseUrl['scheme'], ['http', 'https'])) return false;
-        extract($parseUrl);//将数组中的 index 解压为变量输出 scheme, host, path, query, fragment
-
-        $base = $scheme . '://' . $host;
-        // $basePath = $base . $path;
-
-        if('//' == substr($url, 0, 2)) {
-            $url = str_replace('//', '', $url);
-        } elseif('/' == $url[0]) {// 说明是绝对路径
-            $url = $host . $url;
-        } elseif('.' == $url[0]) {// 说明是相对路径
-            $dots = explode('/', $url); // ../../x.html
-            $paths = explode('/', $path); // /a/b/c/d
-            foreach ($dots as $dot) {
-                if('..' == $dot) {
-                    $paths = array_pop($paths);
-                    $dots = array_shift($dots);
-                }
-            }
-            $url = implode($dots, '/');
-            $path = implode($paths, '/');
-            $url = $host . $path . $url;
-        }
-        $url = strstr($url, 'http') ? $url : $scheme . '://' . $url;
-
-
-        // $parse_url = parse_url($url);
-        // if(!empty($parse_url['host'])) {
-        //     if(!in_array($parse_url['host'], self::$config['domains'])) {
-        //         return false;
-        //     }
-        // }
-        return $url;
     }
 }

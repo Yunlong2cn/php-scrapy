@@ -253,7 +253,14 @@ class Spider
             Log::info('准备解析字段，select_type = ' . $selector_type);
             if($fields = Field::gets($page['raw'], $rFields, $selector_type)) {
                 Log::info('准备解析字段 +1+');
-                $conf = isset($task['export']) ? $task['export'] : (empty(self::$config['export']) ? ['type' => 'log'] : self::$config['export']);
+                
+                // ===> 准备 config
+                if(empty($task['export'])) {
+                    $conf = empty(self::$config['export']) ? ['type' => 'log'] : self::$config['export'];
+                } else {
+                    $conf = empty(self::$config['export']) ? $task['export'] : Helper::merge(self::$config['export'], $task['export']);
+                }
+                // <=== config
 
                 // 处理预保存数据
                 foreach ($fields as $k => $field) {
@@ -288,7 +295,7 @@ class Spider
 
                         $fields[$k] = Helper::merge($fields[$k], $taskData);
                     }
-
+                    
                     if($conf && $fields[$k]) {
                         if(is_null($this->dbHandle)) {
                             $this->dbHandle = $this->getDbHandle($conf);

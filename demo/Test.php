@@ -5,6 +5,8 @@ namespace yunlong2cn\ps\demo;
 use yunlong2cn\ps\Scheduler;
 use yunlong2cn\ps\Work;
 use yunlong2cn\ps\Helper;
+use yunlong2cn\ps\Config;
+use yunlong2cn\ps\Spider;
 
 
 use MongoDB\Client;
@@ -19,23 +21,22 @@ class Test
 {
     public function index($id = 1)
     {
-        $client = new Client('mongodb://192.168.0.136:17017');
-        $sites = $client->main->sites->find();
-
-        $scheduler = new Scheduler;
-
-        foreach ($sites as $site) {
-            $site = json_decode(json_encode($site), 1);
-            $scheduler->newTask(Work::execute($site));
+        if(isset($_POST['config'])) {
+            $config = $_POST['config'];
+            $config = "<?php return $config;";
+            file_put_contents('./config/spiders/temp/temp.php', $config);
+            $config = require_once('./config/spiders/temp/temp.php');
+            $spider = new Spider($config);
+            $res = shell_exec('php /data/scrapy crawler temp/temp');
+            exit;
         }
-        
-        $scheduler->run();
+
+        echo "<form method='post'><textarea name='config'></textarea><input type='submit' value='测试'/></form>";
     }
 
     public function webdriver($arg = 'chrome')
     {
-        $host = 'http://'. $arg .'-host:4444/wd/hub';
-        // $host = 'http://192.168.0.200:4445/wd/hub';
+        $host = 'http://'. $arg .'-host:5555/wd/hub';
         
         if('firefox' == $arg) {
             // Launch Firefox:
@@ -45,13 +46,23 @@ class Test
             $driver = RemoteWebDriver::create($host, DesiredCapabilities::chrome());
         } else {
             exit('错误的浏览器驱动');
-        }      
+        }
 
         $driver->get('https://www.baidu.com/');
         $doc = $driver->getTitle();
         print_r($doc);
+    }
 
-
+    public function t()
+    {
+        $config = [
+            'queue' => 'dsfa',
+            'export' => [
+                'table' => 'app_comement'
+            ]
+        ];
+        $config = Helper::merge(Config::get(), $config);
+        print_r($config);
     }
 }
 

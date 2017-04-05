@@ -16,11 +16,15 @@ redis:
     - "6379:6379"
   # volumes:
   #   - ./data/redis:/data
+hub:
+  image: selenium/hub
+  # ports:
+  #   - "4444:4444"
 chrome:
-  image: selenium/hub
-  ports:
-    - "4444:4444"
+  image: selenium/node-chrome
+  links:
+    - hub:hub
 firefox:
-  image: selenium/hub
-  ports:
-    - "4445:4444"
+  image: selenium/node-firefox
+  links:
+    - hub:hub

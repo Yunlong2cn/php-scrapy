@@ -35,6 +35,7 @@ class Work
 
     public static function execute($config)
     {
+        $config = Helper::merge(Config::get(), $config);
         $spider = new Spider($config);
         $spider->start();
         yield;

@@ -14,7 +14,7 @@ class Db
     }
 
     public function save($data, $conf = [])
-    {        
+    {
         $out = empty($conf['table']) ? empty($conf['file']) ? '' : $conf['file'] : $conf['table'];
 
         // 为数据自动加入创建时间和更新时间
