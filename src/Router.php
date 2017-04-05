@@ -11,13 +11,21 @@ class Router
         $action = 'index';
         $params = [];
 
-        // 获取执行参数
-        $argc = $_SERVER['argc'];
-        $argv = $_SERVER['argv'];
-        
-        $cs = explode('/', $argv[1]);
+        if('cli' == php_sapi_name()) {
+            // 获取执行参数
+            $argc = $_SERVER['argc'];
+            $argv = $_SERVER['argv'];
+            
+            $cs = explode('/', $argv[1]);
+            
+        } else {
+            $cs = explode('/', trim($_SERVER['PATH_INFO'], '/'));
+        }
+
         if(!empty($cs[0])) $controller = $cs[0];
         if(!empty($cs[1])) $action = $cs[1];
+
+        
 
         $controller = 'yunlong2cn\\ps\\demo\\' . $controller;
 

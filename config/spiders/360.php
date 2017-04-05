@@ -5,7 +5,6 @@ return [
         'http://api.app.btime.com/news/list?protocol=2&cid=7389193781085e10178780f6bbb3c79e'
     ],
     'domains' => ['api.app.btime.com'],
-    'queue' => 'redis@tcp://redis-host:6379',
     'is_allow_update' => false,
     'list_url_regexes' => [
         [
@@ -98,8 +97,6 @@ return [
                 ]
             ],
             'export' => [
-                'type' => 'mongo',
-                'uri' => 'mongodb://192.168.0.136:17017/vvv',
                 'table' => 'apps_comments'
             ]
         ]
@@ -107,10 +104,5 @@ return [
     'data' => [
         'media_source' => '360',
         'flag' => 0
-    ],
-    'export' => [
-        'type' => 'mongo',
-        'uri' => 'mongodb://192.168.0.136:17017/vvv',
-        'table' => 'apps_data'
     ]
 ];

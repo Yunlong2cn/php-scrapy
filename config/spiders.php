@@ -6,6 +6,8 @@ return [
         require(__DIR__ . '/spiders/ifeng.php'),
         require(__DIR__ . '/spiders/sina.php'),
         require(__DIR__ . '/spiders/wzxc.php'),
-        require(__DIR__ . '/spiders/wodai.php'),
+
+
+        require(__DIR__ . '/spiders/third_platforms/p2pchina.php'),
     ]
 ];

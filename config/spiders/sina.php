@@ -5,7 +5,6 @@ return [
         'https://sapi.sina.cn/ls/getCardDataV3?card=news&page=-1'
     ],
     'domains' => ['sapi.sina.cn', 'cmnt.sina.cn'],
-    'queue' => 'redis@tcp://redis-host:6379',
     'list_url_regexes' => [
         [
             'regex' => 'https://sapi.sina.cn/ls/getCardDataV3\?card=news&page=\-1',
@@ -101,8 +100,6 @@ return [
                 ]
             ],
             'export' => [
-                'type' => 'mongo',
-                'uri' => 'mongodb://192.168.0.136:17017/vvv',
                 'table' => 'apps_comments'
             ]
         ]
@@ -110,10 +107,5 @@ return [
     'data' => [
         'media_source' => 'sina',
         'flag' => 0
-    ],
-    'export' => [
-        'type' => 'mongo',
-        'uri' => 'mongodb://192.168.0.136:17017/vvv',
-        'table' => 'apps_data'
     ]
 ];
