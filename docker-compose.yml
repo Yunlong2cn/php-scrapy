@@ -8,9 +8,23 @@ cli:
     - ./php.ini-cli:/usr/local/etc/php/php.ini:ro
   links:
     - redis:redis-host
+    - chrome:chrome-host
+    - firefox:firefox-host
 redis:
   image: daocloud.io/library/redis
   ports:
     - "6379:6379"
   volumes:
     - ./data/redis:/data
+hub:
+  image: selenium/hub
+  ports:
+    - "4444:4444"
+chrome:
+  image: selenium/node-chrome
+  links:
+    - hub:hub
+firefox:
+  image: selenium/node-firefox
+  links:
+    - hub:hub

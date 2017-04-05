@@ -35,7 +35,7 @@ class Test
     public function webdriver($arg = 'chrome')
     {
         $host = 'http://'. $arg .'-host:4444/wd/hub';
-        $host = 'http://192.168.0.200:4445/wd/hub';
+        // $host = 'http://192.168.0.200:4445/wd/hub';
         
         if('firefox' == $arg) {
             // Launch Firefox:
