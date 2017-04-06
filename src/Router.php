@@ -38,6 +38,7 @@ class Router
                 if(empty($argv[$i])) break;
 
                 $params[$param->name] = $argv[$i];
+                $i++;
             }
         }
 
