@@ -83,12 +83,18 @@ class Url
     {
         $document = phpQuery::newDocumentHTML($content);
         if(isset($link['selector'])) {
-            $selector_content = $document->find($link['selector'])->html();
+            $selector = is_string($link['selector']) ? [$link['selector']] : $link['selector'];
+            $selector_content = '';
+            foreach ($selector as $value) {
+                $selector_content .= $document->find($value)->html();
+            }
             $document = phpQuery::newDocumentHTML($selector_content);
         }
         $urls = [];
         foreach ($document->find('a') as $arg) {
-            $urls[] = pq($arg)->attr('href');
+            $href = pq($arg)->attr('href');
+
+            $urls[] = $href;
         }
         
         // 处理并优化 url
@@ -107,6 +113,8 @@ class Url
                 unset($urls[$k]);
             }
         }
+
+
         return empty($urls) ? false : [$urls];
     }
 }
