@@ -19,8 +19,8 @@ redis:
     - ./data/redis:/data
 hub:
   image: selenium/hub
-  ports:
-    - "4444:4444"
+  # ports:
+  #   - "4444:4444"
 chrome:
   image: selenium/node-chrome
   links:
