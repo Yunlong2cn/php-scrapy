@@ -16,7 +16,7 @@ class Crawler
      * @param spider 为空，则执行所有爬虫进行采集
      *
      **/
-    public function index($spider = '')
+    public function index($spider = '', $type = 'multi')
     {
         if(empty($spider)) {
             $spiders = require('./config/spiders.php');
@@ -32,6 +32,7 @@ class Crawler
         $scheduler = new Scheduler;
 
         foreach ($spiders as $spider) {
+            $spider = Helper::merge($spider, ['type' => $type]);
             $scheduler->newTask(Work::execute(Helper::serialize($spider)));
         }
         
