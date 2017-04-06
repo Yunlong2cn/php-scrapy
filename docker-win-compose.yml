@@ -8,6 +8,7 @@ cli:
     - ./php.ini-cli:/usr/local/etc/php/php.ini:ro
   links:
     - redis:redis-host
+    - mongodb:mongodb-host
     - chrome:chrome-host
     - firefox:firefox-host
 redis:
@@ -28,3 +29,7 @@ firefox:
   image: selenium/node-firefox
   links:
     - hub:hub
+mongodb:
+  image: daocloud.io/library/mongo
+  ports:
+    - "37017:27017"
