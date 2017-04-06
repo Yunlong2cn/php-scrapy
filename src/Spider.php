@@ -26,6 +26,16 @@ class Spider
     public function __construct($config)
     {
         self::$config = Helper::merge(self::$config, $config);
+
+        /**
+         * 爬虫类型 type，待修复，目前请使用 multi 形式
+         *
+         * multi 既生成队列又执行采集
+         * queue 只生成队列
+         * collect 只采集
+         *
+         **/
+        self::$config['type'] = empty(self::$config['type']) ? 'multi' : self::$config['type'];
         
         $queueType = empty(self::$config['queue']) ? 'flash' : self::$config['queue'];
         $this->queueHandle = $this->getQueueHandle($queueType);
@@ -75,27 +85,42 @@ class Spider
         if(!empty(self::$config['name'])) {
             Log::info('---------------------');
             Log::info('- 爬虫名称： 【'. self::$config['name'] .'】');
+            if('queue' == self::$config['type']) {
+                Log::info('当前模式，只生成队列');
+            } elseif('collect' == self::$config['type']) {
+                Log::info('当前模式，只采集数据');
+            } elseif('multi' == self::$config['type']) {
+                Log::info('当前模式，生成队列并采集数据');
+            }
             Log::info('---------------------');
         } else {
             Log::error('请先设置爬虫名称', true);
         }
-        
-        usleep(1000);
 
         $this->do_collect_page();// 开始采集
 
         Log::info('恭喜，采集完成');
-        usleep(1000);
-
     }
 
     private function is_scan_page($url)
     {
         $parseUrl = parse_url($url);
-        if(empty($parseUrl['host']) || !in_array($parseUrl['host'], self::$config['domains'])) {
-            return false;
+
+        if(empty($parseUrl['host'])) return false;
+
+        foreach (self::$config['domains'] as $domain) {
+            $pattern = '~'. $domain .'~is';
+            $pattern = str_replace('*', '.*', $pattern);
+            if(preg_match($pattern, $parseUrl['host'])) {
+                return true;
+            }
         }
-        return true;
+
+        if(in_array($parseUrl['host'], self::$config['domains'])) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -129,11 +154,11 @@ class Spider
 
         // 只将想要的链接添加到任务，可优化为全站采集
         if(!in_array($link['url_type'], ['list_page', 'content_page'])) {
-            Log::info('不在采集范围内， url = ' . $url . ', url_type = ' . $link['url_type']);
+            // Log::info('不在采集范围内， url = ' . $url . ', url_type = ' . $link['url_type']);
             return false;
         }
 
-        Log::debug('添加 入口 地址 = ' . $url);
+        Log::debug('添加 入口 地址 = ' . $url . ' url_type = ' . $link['url_type']);
 
 
         return $this->queueHandle->push($link);
@@ -208,7 +233,7 @@ class Spider
         }
         
 
-        Log::info("Get task，准备采集 url = $url, url_type = {$task['url_type']}");
+        Log::info("Get task，准备下载 url = $url, url_type = {$task['url_type']}");
 
         $html = Downloader::fetch($task['url'], $request);
         if(!$html) return false;
@@ -224,6 +249,8 @@ class Spider
 
         // 是否在当前页面提取URL并发现待爬取页面
         $is_find_page = true;
+
+        if('collect' == self::$config['type']) $is_find_page = false;
         
         if($is_find_page) {
             if(0 == self::$config['max_depth']) {
@@ -246,73 +273,73 @@ class Spider
         }
 
 
-        // 如果是内容页面，分析提取页面中的字段
-        if('content_page' == $task['url_type']) {
-            $rFields = empty($task['fields']) ? empty(self::$config['fields']) ? [] : self::$config['fields'] : $task['fields'];
-            $selector_type = empty($task['selector_type']) ? empty(self::$config['selector_type']) ? 'csspath' : self::$config['selector_type'] : $task['selector_type'];
-            Log::info('准备解析字段，select_type = ' . $selector_type);
-            if($fields = Field::gets($page['raw'], $rFields, $selector_type)) {
-                Log::info('准备解析字段 +1+');
-                
-                // ===> 准备 config
-                if(empty($task['export'])) {
-                    $conf = empty(self::$config['export']) ? ['type' => 'log'] : self::$config['export'];
-                } else {
-                    $conf = empty(self::$config['export']) ? $task['export'] : Helper::merge(self::$config['export'], $task['export']);
-                }
-                // <=== config
-
-                // 处理预保存数据
-                foreach ($fields as $k => $field) {
-                    $fields[$k] = Helper::merge($fields[$k], [
-                        'url' => $url,
-                        'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
-                    ]);
-
-                    if(!empty(self::$config['data'])) {
-                        Log::info('自动合并当前配置默认数据');
-                        $globalData = self::$config['data'];
-                        foreach ($globalData as $key => $data) {
-                            if(is_string($data) || is_numeric($data)) {
-                                $globalData[$key] = $data;
-                            } else {
-                                $globalData[$key] = call_user_func($data);
-                            }
-                        }
-                        $fields[$k] = Helper::merge($fields[$k], $globalData);
-                    }
-
-                    if(isset($task['data'])) {// 如果配置了默认数据，则自动合并
-                        Log::info('自动合并当前任务默认数据');
-                        $taskData = $task['data'];
-                        foreach ($taskData as $key => $data) {
-                            if(is_string($data)) {
-                                $taskData[$key] = $data;
-                            } else {
-                                $taskData[$key] = call_user_func($data);
-                            }
-                        }
-
-                        $fields[$k] = Helper::merge($fields[$k], $taskData);
-                    }
+        if('queue' == self::$config['type']) {// 如果只生成队列，这里分析字段部分不需要
+            Log::info('跳过字段分析');
+        } else {// 只采集或既采集又生成队列
+            // 如果是内容页面，分析提取页面中的字段
+            if('content_page' == $task['url_type']) {
+                $rFields = empty($task['fields']) ? empty(self::$config['fields']) ? [] : self::$config['fields'] : $task['fields'];
+                $selector_type = empty($task['selector_type']) ? empty(self::$config['selector_type']) ? 'csspath' : self::$config['selector_type'] : $task['selector_type'];
+                if($fields = Field::gets($page['raw'], $rFields, $selector_type)) {
                     
-                    if($conf && $fields[$k]) {
-                        if(is_null($this->dbHandle)) {
-                            $this->dbHandle = $this->getDbHandle($conf);
-                        }
-                        Log::info('准备入库' . json_encode($conf));
-                        if($this->dbHandle->save($fields[$k], $conf)) {
-                            Log::info('保存数据成功');
-                        } else {
-                            Log::warn('保存数据失败');
-                        }
+                    // ===> 准备 config
+                    if(empty($task['export'])) {
+                        $conf = empty(self::$config['export']) ? ['type' => 'log'] : self::$config['export'];
+                    } else {
+                        $conf = empty(self::$config['export']) ? $task['export'] : Helper::merge(self::$config['export'], $task['export']);
                     }
+                    // <=== config
 
+                    // 处理预保存数据
+                    foreach ($fields as $k => $field) {
+                        $fields[$k] = Helper::merge($fields[$k], [
+                            'url' => $url,
+                            'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
+                        ]);
+
+                        if(!empty(self::$config['data'])) {
+                            Log::info('自动合并当前配置默认数据');
+                            $globalData = self::$config['data'];
+                            foreach ($globalData as $key => $data) {
+                                if(is_string($data) || is_numeric($data)) {
+                                    $globalData[$key] = $data;
+                                } else {
+                                    $globalData[$key] = call_user_func($data);
+                                }
+                            }
+                            $fields[$k] = Helper::merge($fields[$k], $globalData);
+                        }
+
+                        if(isset($task['data'])) {// 如果配置了默认数据，则自动合并
+                            Log::info('自动合并当前任务默认数据');
+                            $taskData = $task['data'];
+                            foreach ($taskData as $key => $data) {
+                                if(is_string($data)) {
+                                    $taskData[$key] = $data;
+                                } else {
+                                    $taskData[$key] = call_user_func($data);
+                                }
+                            }
+
+                            $fields[$k] = Helper::merge($fields[$k], $taskData);
+                        }
+                        
+                        if($conf && $fields[$k]) {
+                            if(is_null($this->dbHandle)) {
+                                $this->dbHandle = $this->getDbHandle($conf);
+                            }
+                            Log::info('准备入库' . json_encode($conf));
+                            if($this->dbHandle->save($fields[$k], $conf)) {
+                                Log::info('保存数据成功');
+                            } else {
+                                Log::warn('保存数据失败');
+                            }
+                        }
+
+                    }
+                    unset($fields);
                 }
-                unset($fields);
             }
-            Log::info('准备解析字段 +2+');
-
         }
     }
 
