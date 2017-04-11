@@ -4,7 +4,7 @@ return [
     // 'queue' => 'redis@tcp://redis-host:6379',
     'export' => [
         'type' => 'mongo',
-        'uri' => 'mongodb://192.168.3.47:27018/weibo',
+        'uri' => 'mongodb://mongodb-host:27018/weibo',
         'table' => 'apps_data'
     ]
 ];
