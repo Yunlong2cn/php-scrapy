@@ -150,6 +150,13 @@ class Spider
                 $link = Helper::merge($regex, $link);
             }
             $link['url_type'] = 'content_page';
+            // 保存采集的 URL 到库中
+            if($this->dbHandle->find(['urlmd5' => md5($url)], 'snatch_urls')) {
+                Log::info('++ 当前URL已被采集，跳过...');
+                return false;
+            }
+            $this->dbHandle->save(['urlmd5' => md5($url)], 'snatch_urls');
+
         }
 
         // 只将想要的链接添加到任务，可优化为全站采集
