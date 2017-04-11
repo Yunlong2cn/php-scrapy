@@ -6,6 +6,8 @@ use yunlong2cn\ps\Log;
 use yunlong2cn\ps\Helper;
 use yunlong2cn\ps\Scheduler;
 use yunlong2cn\ps\Work;
+use yunlong2cn\ps\Spider;
+use yunlong2cn\ps\Config;
 
 use MongoDB\Client;
 
@@ -38,5 +40,42 @@ class Crawler
         
         $scheduler->run();
 
+    }
+
+    public function multi()
+    {
+        $spiders = ['360', 'ifeng', 'sina', 'toutiao', 'wzxc'];
+        $configs = [];
+        $globalConfig = Config::get();
+        $doSpiders = [];
+        foreach ($spiders as $spider) {
+            $config = require('./config/spiders/app_news/'. $spider .'.php');
+            // file_put_contents('config.txt', print_r($config, 1), FILE_APPEND);
+            $config = Helper::merge($globalConfig, Helper::serialize($config));
+            $configs[] = $config;
+            $doSpiders[] = new Spider($config);
+        }
+        $fork = new \duncan3dc\Forker\Fork;
+
+        $forkPIDs = [];
+        while (true) {
+            foreach ($configs as $config) {
+                Log::info('准备采集 spider = ' . $config['name']);
+                $spider = new Spider($config);
+                $fork->call(function() use ($spider) {
+                    $spider->start();
+                });
+            }
+            $fork->wait();
+            Log::info('休息一会，继续执行');
+            sleep(3);
+        }
+
+        
+        while (true) {
+            foreach ($forkPIDs as $pid) {
+                $fork->wait($pid);
+            }
+        }
     }
 }

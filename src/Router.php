@@ -27,7 +27,7 @@ class Router
 
         
 
-        $controller = 'yunlong2cn\\ps\\demo\\' . $controller;
+        $controller = 'yunlong2cn\\ps\\demo\\' . ucfirst($controller);
 
         if($argc > 2) {// 说明有参数
             $reflector = new \ReflectionClass($controller);

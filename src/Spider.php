@@ -8,7 +8,7 @@ use yunlong2cn\ps\adapter\FileAdapter;
 
 class Spider
 {
-    private static $config = [
+    private $config = [
         'max_depth' => 0
     ];
 
@@ -25,7 +25,7 @@ class Spider
 
     public function __construct($config)
     {
-        self::$config = Helper::merge(self::$config, $config);
+        $this->config = Helper::merge($this->config, $config);
 
         /**
          * 爬虫类型 type，待修复，目前请使用 multi 形式
@@ -35,9 +35,9 @@ class Spider
          * collect 只采集
          *
          **/
-        self::$config['type'] = empty(self::$config['type']) ? 'multi' : self::$config['type'];
+        $this->config['type'] = empty($this->config['type']) ? 'multi' : $this->config['type'];
         
-        $queueType = empty(self::$config['queue']) ? 'flash' : self::$config['queue'];
+        $queueType = empty($this->config['queue']) ? 'flash' : $this->config['queue'];
         $this->queueHandle = $this->getQueueHandle($queueType);
     }
 
@@ -49,13 +49,13 @@ class Spider
     public function start()
     {
         
-        if(empty(self::$config['scan_urls'])) {
+        if(empty($this->config['scan_urls'])) {
             Log::error("未配置入口 URL", true);
         }
 
         
         // 检查入口 URL 是否正确
-        foreach (self::$config['scan_urls'] as $url) {
+        foreach ($this->config['scan_urls'] as $url) {
             $url = is_array($url) ? $url['url'] : $url;
             if(!$this->is_scan_page($url)) {
                 Log::error("入口 URL = {$url}，不匹配当前已配置域名范围", true);
@@ -68,7 +68,7 @@ class Spider
             Log::$log_show = false;
         }
 
-        foreach (self::$config['scan_urls'] as $url) {
+        foreach ($this->config['scan_urls'] as $url) {
             $option = [];
             if(is_array($url)) {
                 $option = $url;
@@ -82,14 +82,14 @@ class Spider
             call_user_func($this->onStart, $this);
         }
 
-        if(!empty(self::$config['name'])) {
+        if(!empty($this->config['name'])) {
             Log::info('---------------------');
-            Log::info('- 爬虫名称： 【'. self::$config['name'] .'】');
-            if('queue' == self::$config['type']) {
+            Log::info('- 爬虫名称： 【'. $this->config['name'] .'】');
+            if('queue' == $this->config['type']) {
                 Log::info('当前模式，只生成队列');
-            } elseif('collect' == self::$config['type']) {
+            } elseif('collect' == $this->config['type']) {
                 Log::info('当前模式，只采集数据');
-            } elseif('multi' == self::$config['type']) {
+            } elseif('multi' == $this->config['type']) {
                 Log::info('当前模式，生成队列并采集数据');
             }
             Log::info('---------------------');
@@ -108,7 +108,7 @@ class Spider
 
         if(empty($parseUrl['host'])) return false;
 
-        foreach (self::$config['domains'] as $domain) {
+        foreach ($this->config['domains'] as $domain) {
             $pattern = '~'. $domain .'~is';
             $pattern = str_replace('*', '.*', $pattern);
             if(preg_match($pattern, $parseUrl['host'])) {
@@ -116,7 +116,7 @@ class Spider
             }
         }
 
-        if(in_array($parseUrl['host'], self::$config['domains'])) {
+        if(in_array($parseUrl['host'], $this->config['domains'])) {
             return true;
         }
 
@@ -151,11 +151,18 @@ class Spider
             }
             $link['url_type'] = 'content_page';
             // 保存采集的 URL 到库中
+            if(is_null($this->dbHandle)) {
+                $this->dbHandle = $this->getDbHandle([
+                    'type' => 'mongo',
+                    'uri' => 'mongodb://192.168.3.47:27018/weibo',
+                    'table' => 'snatch_urls'
+                ]);
+            }
+
             if($this->dbHandle->find(['urlmd5' => md5($url)], 'snatch_urls')) {
                 Log::info('++ 当前URL已被采集，跳过...');
                 return false;
             }
-            $this->dbHandle->save(['urlmd5' => md5($url)], 'snatch_urls');
 
         }
 
@@ -179,7 +186,7 @@ class Spider
 
     private function is_list_page($url)
     {
-        if(isset(self::$config['list_url_regexes'])) foreach (self::$config['list_url_regexes'] as $regex) {
+        if(isset($this->config['list_url_regexes'])) foreach ($this->config['list_url_regexes'] as $regex) {
             if(is_array($regex)) {
                 $regexPattern = $regex['regex'];
             } else {
@@ -194,7 +201,7 @@ class Spider
 
     private function is_content_page($url)
     {
-        if(isset(self::$config['content_url_regexes'])) foreach (self::$config['content_url_regexes'] as $regex) {
+        if(isset($this->config['content_url_regexes'])) foreach ($this->config['content_url_regexes'] as $regex) {
             if(is_array($regex)) {
                 $regexPattern = $regex['regex'];
             } else {
@@ -226,13 +233,13 @@ class Spider
         $request = isset($task['request']) ? $task['request'] : [];
 
         // 任务取出来以后，看一下是否允许采集
-        if('db' == self::$config['export']['type']) {
+        if('db' == $this->config['export']['type']) {
             // 根据 url 去数据库中查一下，当前页面是否在之前被采集过
-            // if($one = (new Query)->from(self::$config['export']['table'])->where([
+            // if($one = (new Query)->from($this->config['export']['table'])->where([
             //     'url' => $url
             // ])->one()) {
             //     $fields['_id'] = $one['_id']->__tostring();
-            //     if(!self::$config['is_allow_update']) {
+            //     if(!$this->config['is_allow_update']) {
             //         Log::info('跳过任务，不允许更新已采集内容');
             //         return false;
             //     }
@@ -257,10 +264,10 @@ class Spider
         // 是否在当前页面提取URL并发现待爬取页面
         $is_find_page = true;
 
-        if('collect' == self::$config['type']) $is_find_page = false;
+        if('collect' == $this->config['type']) $is_find_page = false;
         
         if($is_find_page) {
-            if(0 == self::$config['max_depth']) {
+            if(0 == $this->config['max_depth']) {
                 if($urls = Url::gets($page['raw'], $task)) {
                     foreach ($urls as $_urls) {// 由于页面中可能有需要返回的 url 需要组合，因此这里直接使用二维数组进行处理
                         foreach ($_urls as $_url) {
@@ -280,20 +287,20 @@ class Spider
         }
 
 
-        if('queue' == self::$config['type']) {// 如果只生成队列，这里分析字段部分不需要
+        if('queue' == $this->config['type']) {// 如果只生成队列，这里分析字段部分不需要
             Log::info('跳过字段分析');
         } else {// 只采集或既采集又生成队列
             // 如果是内容页面，分析提取页面中的字段
             if('content_page' == $task['url_type']) {
-                $rFields = empty($task['fields']) ? empty(self::$config['fields']) ? [] : self::$config['fields'] : $task['fields'];
-                $selector_type = empty($task['selector_type']) ? empty(self::$config['selector_type']) ? 'csspath' : self::$config['selector_type'] : $task['selector_type'];
+                $rFields = empty($task['fields']) ? empty($this->config['fields']) ? [] : $this->config['fields'] : $task['fields'];
+                $selector_type = empty($task['selector_type']) ? empty($this->config['selector_type']) ? 'csspath' : $this->config['selector_type'] : $task['selector_type'];
                 if($fields = Field::gets($page['raw'], $rFields, $selector_type)) {
                     
                     // ===> 准备 config
                     if(empty($task['export'])) {
-                        $conf = empty(self::$config['export']) ? ['type' => 'log'] : self::$config['export'];
+                        $conf = empty($this->config['export']) ? ['type' => 'log'] : $this->config['export'];
                     } else {
-                        $conf = empty(self::$config['export']) ? $task['export'] : Helper::merge(self::$config['export'], $task['export']);
+                        $conf = empty($this->config['export']) ? $task['export'] : Helper::merge($this->config['export'], $task['export']);
                     }
                     // <=== config
 
@@ -304,9 +311,9 @@ class Spider
                             'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
                         ]);
 
-                        if(!empty(self::$config['data'])) {
+                        if(!empty($this->config['data'])) {
                             Log::info('自动合并当前配置默认数据');
-                            $globalData = self::$config['data'];
+                            $globalData = $this->config['data'];
                             foreach ($globalData as $key => $data) {
                                 if(is_string($data) || is_numeric($data)) {
                                     $globalData[$key] = $data;

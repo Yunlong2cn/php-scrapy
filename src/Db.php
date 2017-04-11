@@ -32,6 +32,21 @@ class Db
             }
         }
 
-        return $this->adapter->insert($data, $out);
+        if($insert = $this->adapter->insert($data, $out)) {
+            $this->adapter->insert([
+                'url' => $data['url'],
+                'urlmd5' => $data['urlmd5']
+            ], 'snatch_urls');
+            return $insert;
+        }
+        return false;
+    }
+
+    public function find($filter, $collection, $database = NULL) {
+        return $this->adapter->find($filter, $collection);
+    }
+
+    public function insert($data, $collection, $database = NULL) {
+        return $this->adapter->insert($data, $collection, $database);
     }
 }

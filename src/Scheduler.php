@@ -1,7 +1,7 @@
 <?php
 namespace yunlong2cn\ps;
 
-use yunlong2cn\ps\Tasks\Task;
+use yunlong2cn\ps\tasks\Task;
 
 class Scheduler
 {
