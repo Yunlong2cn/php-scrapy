@@ -70,7 +70,7 @@ class Url
                     $before = empty($returnUrls[$index][$k]['url']) ? $returnUrlTpl : $returnUrls[$index][$k]['url'];
                     if(!is_array($f)) {
                         $returnUrls[$index][$k]['url'] = str_replace("{{$key}}", $f, $before);
-                        Log::debug('替换后 URL = ' . $returnUrls[$index][$k]['url']);
+                        // Log::debug('替换后 URL = ' . $returnUrls[$index][$k]['url']);
                     }
                 }
             }

@@ -53,16 +53,38 @@ class Test
         print_r($doc);
     }
 
-    public function t()
+    public function fork()
     {
-        $config = [
-            'queue' => 'dsfa',
-            'export' => [
-                'table' => 'app_comement'
-            ]
-        ];
-        $config = Helper::merge(Config::get(), $config);
-        print_r($config);
+        $fork = new \duncan3dc\Forker\Fork;
+        $a = $fork->call(function() {
+            for ($i=0; $i < 10; $i++) { 
+                echo "a - i = " . $i . PHP_EOL;
+                sleep(1);
+            }
+        });
+
+        $b = $fork->call(function() {
+            for ($i=0; $i < 15; $i++) { 
+                echo "b - i = " . $i . PHP_EOL;
+                sleep(1);
+            }
+        });
+
+        $c = $fork->call(function() {
+            for ($i=0; $i < 10; $i++) { 
+                echo "c - i = " . $i . PHP_EOL;
+                sleep(1);
+            }
+        });
+
+        print_r($fork->getPIDs());
+
+        $fork->wait($a);
+        echo "a.." . PHP_EOL;
+        $fork->wait($b);
+        echo "b.." . PHP_EOL;
+        $fork->wait($c);
+        echo "c.." . PHP_EOL;
     }
 }
 

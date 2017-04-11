@@ -22,6 +22,7 @@ class Spider
 
     private $queueHandle = NULL;
     private $dbHandle = NULL;
+    private $snatchHandle = NULL;
 
     public function __construct($config)
     {
@@ -152,11 +153,7 @@ class Spider
             $link['url_type'] = 'content_page';
             // 保存采集的 URL 到库中
             if(is_null($this->dbHandle)) {
-                $this->dbHandle = $this->getDbHandle([
-                    'type' => 'mongo',
-                    'uri' => 'mongodb://192.168.3.47:27018/weibo',
-                    'table' => 'snatch_urls'
-                ]);
+                $this->dbHandle = $this->getDbHandle(Config::get('export'));
             }
 
             if($this->dbHandle->find(['urlmd5' => md5($url)], 'snatch_urls')) {

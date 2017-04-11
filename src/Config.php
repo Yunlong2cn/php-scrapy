@@ -3,12 +3,16 @@ namespace yunlong2cn\ps;
 
 class Config
 {
+    public static $config;
+
     public static function get($nodeName = '')
     {
-        $config = require_once('./scrapy.cfg');
+        if(empty(self::$config)) {
+            self::$config = require_once('./scrapy.cfg');
+        }
 
-        if(empty($nodeName)) return $config;
+        if(empty($nodeName)) return self::$config;
 
-        return $config[$nodeName];
+        return self::$config[$nodeName];
     }
 }

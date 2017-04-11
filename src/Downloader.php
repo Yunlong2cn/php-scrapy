@@ -8,7 +8,7 @@ class Downloader
     {
         $client = new \GuzzleHttp\Client();
         $method = isset($args['method']) ? strtoupper($args['method']) : 'GET';
-        Log::debug("method = $method");
+        // Log::debug("method = $method");
         $option = [
             'allow_redirects' => [
                 'max' => 10

@@ -47,35 +47,35 @@ class Crawler
         $spiders = ['360', 'ifeng', 'sina', 'toutiao', 'wzxc'];
         $configs = [];
         $globalConfig = Config::get();
-        $doSpiders = [];
-        foreach ($spiders as $spider) {
+
+
+        foreach ($spiders as $key => $spider) {
             $config = require('./config/spiders/app_news/'. $spider .'.php');
-            // file_put_contents('config.txt', print_r($config, 1), FILE_APPEND);
             $config = Helper::merge($globalConfig, Helper::serialize($config));
-            $configs[] = $config;
-            $doSpiders[] = new Spider($config);
+            $configs[$key] = $config;
         }
+
         $fork = new \duncan3dc\Forker\Fork;
 
-        $forkPIDs = [];
+        $threads = [];
         while (true) {
-            foreach ($configs as $config) {
-                Log::info('准备采集 spider = ' . $config['name']);
-                $spider = new Spider($config);
-                $fork->call(function() use ($spider) {
-                    $spider->start();
-                });
+            foreach ($spiders as $key => $spider) {
+                $pids = $fork->getPIDs();
+                if(empty($threads[$spider]) || !in_array($threads[$spider], $pids)) {
+                    $doSpider = new Spider($configs[$key]);
+                    $threads[$spider] = $fork->call(function() use ($doSpider){
+                        $doSpider->start();
+                    });
+                    Log::info('启动新进程 spider = '. $spider .', pid = ' . $threads[$spider]);
+                }
             }
             $fork->wait();
-            Log::info('休息一会，继续执行');
             sleep(3);
         }
+    }
 
-        
-        while (true) {
-            foreach ($forkPIDs as $pid) {
-                $fork->wait($pid);
-            }
-        }
+    public function test()
+    {
+
     }
 }
