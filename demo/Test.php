@@ -86,6 +86,12 @@ class Test
         $fork->wait($c);
         echo "c.." . PHP_EOL;
     }
+
+    public function spider($name) {
+        $config = require_once('./config/spiders/'. $name .'.php');
+        $spider = new Spider($config);
+        $spider->start();
+    }
 }
 
 

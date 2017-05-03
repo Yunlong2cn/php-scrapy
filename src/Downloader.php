@@ -23,6 +23,7 @@ class Downloader
             // $response->getParams()->set('redirect.max', 100);
         } catch (\GuzzleHttp\Exception\ServerException $e) {
             Log::info('网络请求异常， URL = ' . $url);
+            Log::debug($e->getMessage());
             return false;
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             Log::info('GuzzleHttp\Exception\ClientException');
