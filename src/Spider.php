@@ -269,7 +269,9 @@ class Spider
                     foreach ($urls as $_urls) {// 由于页面中可能有需要返回的 url 需要组合，因此这里直接使用二维数组进行处理
                         foreach ($_urls as $_url) {
                             if(isset($_url['url'])) $_url = $_url['url'];
-                            $this->add_url($_url);
+                            $this->add_url($_url, [
+                                'doc_urlmd5' => md5($task['url'])
+                            ]);
                         }
                     }
                 }
@@ -307,6 +309,7 @@ class Spider
                             'url' => $url,
                             'urlmd5' => md5($url) // 用于多表关联，主要是包含 return_url 时的关联
                         ]);
+                        if(isset($task['doc_urlmd5'])) $fields[$k]['doc_urlmd5'] = $task['doc_urlmd5'];
 
                         if(!empty($this->config['data'])) {
                             Log::info('自动合并当前配置默认数据');
