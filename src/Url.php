@@ -4,6 +4,7 @@ namespace yunlong2cn\ps;
 
 use phpQuery;
 use Flow\JSONPath\JSONPath;
+use XPathSelector\Selector;
 
 class Url
 {
@@ -15,6 +16,8 @@ class Url
             return self::fromJsonPath($content, $link);
         } elseif('csspath' == $selector_type) {
             return self::fromCssPath($content, $link);
+        } elseif('xpath' == $selector_type) {
+            return self::fromXPath($content, $link);
         }
 
         return false;
@@ -116,5 +119,28 @@ class Url
 
 
         return empty($urls) ? false : [$urls];
+    }
+
+    public function fromXpath($content, $link)
+    {
+        $selector = Selector::loadHTML($content);
+        $urls = $selector->findAll('//a/@href');
+        $return = [];
+        // 1. 去除重复 url
+        // $urls = array_unique($urls); // 这里去重有问题，待处理
+        foreach ($urls as $k => $url) {
+            $url = trim($url);
+            if(empty($url)) {
+                continue;
+            }
+
+            // 2.优化链接地址
+            if($url = Helper::formatUrl($url, $link['url'])) {
+                $return[] = $url;
+            }
+        }
+        unset($urls);
+
+        return empty($return) ? false : [$return];
     }
 }

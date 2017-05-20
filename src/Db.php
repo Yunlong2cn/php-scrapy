@@ -32,11 +32,12 @@ class Db
             }
         }
 
+
         if($insert = $this->adapter->insert($data, $out)) {
-            $this->adapter->insert([
-                'url' => $data['url'],
-                'urlmd5' => $data['urlmd5']
-            ], 'snatch_urls');
+            // $this->adapter->insert([
+            //     'url' => $data['url'],
+            //     'urlmd5' => $data['urlmd5']
+            // ], 'snatch_urls');
             return $insert;
         }
         return false;

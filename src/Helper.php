@@ -106,6 +106,7 @@ class Helper
 
     public static function formatUrl($url, $collect_url)
     {
+
         if('' == $url) return false;
 
         if(preg_match('~^(javascript:|#|\'|")~is', $url)) return false;
@@ -128,13 +129,22 @@ class Helper
             $paths = explode('/', $path); // /a/b/c/d
             foreach ($dots as $dot) {
                 if('..' == $dot) {
-                    $paths = array_pop($paths);
-                    $dots = array_shift($dots);
+                    array_pop($paths);
+                    array_shift($dots);
                 }
             }
             $url = implode($dots, '/');
             $path = implode($paths, '/');
             $url = $host . $path . $url;
+        } elseif(!strstr($url, 'http')) {
+            $paths = explode('/', $path);// /index/detail.php
+            
+            // 因为 path 一定是 /xxx/x.php
+            array_shift($paths);
+            array_pop($paths);
+            
+            $path = implode($paths, '/');
+            $url = $host . "/$path/" . $url;
         }
         $url = strstr($url, 'http') ? $url : $scheme . '://' . $url;
         

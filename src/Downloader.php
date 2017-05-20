@@ -45,6 +45,8 @@ class Downloader
             Log::info("statusCode = $httpCode");
         }
 
+        // print_r($response->getHeader('content-type'));
+
         $return = $body ? $response->getBody() : $response;
 
         // echo($return);

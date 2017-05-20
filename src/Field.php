@@ -3,6 +3,7 @@ namespace yunlong2cn\ps;
 
 use yunlong2cn\ps\field\adapter\JsonAdapter;
 use yunlong2cn\ps\field\adapter\HtmlAdapter;
+use yunlong2cn\ps\field\adapter\XpathAdapter;
 
 
 class Field
@@ -19,6 +20,8 @@ class Field
     {        
         if('jsonpath' == $selector_type) {
             $adapter = new JsonAdapter($content, $fields);
+        } elseif('xpath' == $selector_type) {
+            $adapter = new XpathAdapter($content, $fields, $selector_area);
         } else {
             $adapter = new HtmlAdapter($content, $fields, $selector_area);
         }

@@ -8,7 +8,7 @@ class Config
     public static function get($nodeName = '')
     {
         if(empty(self::$config)) {
-            self::$config = require_once('./scrapy.cfg');
+            self::$config = require_once(ROOT . '/scrapy.cfg');
         }
 
         if(empty($nodeName)) return self::$config;

@@ -4,7 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "261f2adeb87325a75bf49f2ea8953a9e",
+    "hash": "1b0891dc03a7c67910fdd98b86202163",
+    "content-hash": "a1de193aad718eb4caec90da47afff88",
     "packages": [
         {
             "name": "duncan3dc/fork-helper",
@@ -59,7 +60,7 @@
                 "pcntl",
                 "process"
             ],
-            "time": "2016-10-16T15:53:15+00:00"
+            "time": "2016-10-16 15:53:15"
         },
         {
             "name": "electrolinux/phpquery",
@@ -99,7 +100,7 @@
             ],
             "description": "phpQuery is a server-side, chainable, CSS3 selector driven Document Object Model (DOM) API based on jQuery JavaScript Library",
             "homepage": "http://code.google.com/p/phpquery/",
-            "time": "2013-03-21T12:39:33+00:00"
+            "time": "2013-03-21 12:39:33"
         },
         {
             "name": "evenement/evenement",
@@ -145,7 +146,7 @@
                 "event-dispatcher",
                 "event-emitter"
             ],
-            "time": "2012-11-02T14:49:47+00:00"
+            "time": "2012-11-02 14:49:47"
         },
         {
             "name": "facebook/webdriver",
@@ -197,7 +198,7 @@
                 "selenium",
                 "webdriver"
             ],
-            "time": "2017-03-22T10:56:03+00:00"
+            "time": "2017-03-22 10:56:03"
         },
         {
             "name": "flow/jsonpath",
@@ -238,7 +239,7 @@
                 }
             ],
             "description": "JSONPath implementation for parsing, searching and flattening arrays",
-            "time": "2016-09-06T17:43:18+00:00"
+            "time": "2016-09-06 17:43:18"
         },
         {
             "name": "gos/pnctl-event-loop-emitter",
@@ -290,7 +291,7 @@
                 "event loop",
                 "reactphp"
             ],
-            "time": "2016-05-06T15:19:39+00:00"
+            "time": "2016-05-06 15:19:39"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -352,7 +353,7 @@
                 "rest",
                 "web service"
             ],
-            "time": "2017-02-28T22:50:30+00:00"
+            "time": "2017-02-28 22:50:30"
         },
         {
             "name": "guzzlehttp/promises",
@@ -403,7 +404,7 @@
             "keywords": [
                 "promise"
             ],
-            "time": "2016-12-20T10:07:11+00:00"
+            "time": "2016-12-20 10:07:11"
         },
         {
             "name": "guzzlehttp/psr7",
@@ -468,7 +469,7 @@
                 "uri",
                 "url"
             ],
-            "time": "2017-03-20T17:10:46+00:00"
+            "time": "2017-03-20 17:10:46"
         },
         {
             "name": "jeremeamia/SuperClosure",
@@ -526,7 +527,7 @@
                 "serialize",
                 "tokenizer"
             ],
-            "time": "2016-12-07T09:37:55+00:00"
+            "time": "2016-12-07 09:37:55"
         },
         {
             "name": "league/csv",
@@ -583,7 +584,7 @@
                 "read",
                 "write"
             ],
-            "time": "2017-02-23T08:25:03+00:00"
+            "time": "2017-02-23 08:25:03"
         },
         {
             "name": "league/flysystem",
@@ -666,7 +667,7 @@
                 "sftp",
                 "storage"
             ],
-            "time": "2017-03-22T15:43:14+00:00"
+            "time": "2017-03-22 15:43:14"
         },
         {
             "name": "mongodb/mongodb",
@@ -724,7 +725,7 @@
                 "mongodb",
                 "persistence"
             ],
-            "time": "2017-02-16T18:40:32+00:00"
+            "time": "2017-02-16 18:40:32"
         },
         {
             "name": "nette/caching",
@@ -786,7 +787,7 @@
             ],
             "description": "Nette Caching Component",
             "homepage": "https://nette.org",
-            "time": "2017-01-29T20:40:55+00:00"
+            "time": "2017-01-29 20:40:55"
         },
         {
             "name": "nette/database",
@@ -846,7 +847,7 @@
             ],
             "description": "Nette Database Component",
             "homepage": "https://nette.org",
-            "time": "2017-02-02T02:49:31+00:00"
+            "time": "2017-02-02 02:49:31"
         },
         {
             "name": "nette/finder",
@@ -902,7 +903,7 @@
             ],
             "description": "Nette Finder: Files Searching",
             "homepage": "https://nette.org",
-            "time": "2016-05-17T15:49:06+00:00"
+            "time": "2016-05-17 15:49:06"
         },
         {
             "name": "nette/utils",
@@ -966,7 +967,7 @@
             ],
             "description": "Nette Utility Classes",
             "homepage": "https://nette.org",
-            "time": "2017-03-29T16:55:54+00:00"
+            "time": "2017-03-29 16:55:54"
         },
         {
             "name": "nikic/php-parser",
@@ -1017,7 +1018,7 @@
                 "parser",
                 "php"
             ],
-            "time": "2017-03-05T18:23:57+00:00"
+            "time": "2017-03-05 18:23:57"
         },
         {
             "name": "predis/predis",
@@ -1067,7 +1068,7 @@
                 "predis",
                 "redis"
             ],
-            "time": "2016-06-16T16:22:20+00:00"
+            "time": "2016-06-16 16:22:20"
         },
         {
             "name": "psr/http-message",
@@ -1117,7 +1118,7 @@
                 "request",
                 "response"
             ],
-            "time": "2016-08-06T14:39:51+00:00"
+            "time": "2016-08-06 14:39:51"
         },
         {
             "name": "react/event-loop",
@@ -1161,7 +1162,30 @@
                 "asynchronous",
                 "event-loop"
             ],
-            "time": "2016-03-08T02:09:32+00:00"
+            "time": "2016-03-08 02:09:32"
+        },
+        {
+            "name": "stil/xpath-selector",
+            "version": "2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stil/xpath-selector.git",
+                "reference": "06b40813095e14ddc0c4dbf7e7108f83279514d7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://files.phpcomposer.com/files/stil/xpath-selector/06b40813095e14ddc0c4dbf7e7108f83279514d7.zip",
+                "reference": "06b40813095e14ddc0c4dbf7e7108f83279514d7",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "XPathSelector\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "time": "2014-12-08 16:54:18"
         },
         {
             "name": "symfony/polyfill-php56",
@@ -1217,7 +1241,7 @@
                 "portable",
                 "shim"
             ],
-            "time": "2016-11-14T01:06:16+00:00"
+            "time": "2016-11-14 01:06:16"
         },
         {
             "name": "symfony/polyfill-util",
@@ -1269,7 +1293,7 @@
                 "polyfill",
                 "shim"
             ],
-            "time": "2016-11-14T01:06:16+00:00"
+            "time": "2016-11-14 01:06:16"
         },
         {
             "name": "symfony/process",
@@ -1318,7 +1342,7 @@
             ],
             "description": "Symfony Process Component",
             "homepage": "https://symfony.com",
-            "time": "2017-03-04T12:23:14+00:00"
+            "time": "2017-03-04 12:23:14"
         }
     ],
     "packages-dev": [],

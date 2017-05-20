@@ -9,7 +9,7 @@ use yunlong2cn\ps\adapter\FileAdapter;
 class Spider
 {
     private $config = [
-        'max_depth' => 0
+        'max_depth' => 0,
     ];
 
 
@@ -226,6 +226,10 @@ class Spider
         }
         Log::debug('当前任务数：' . $this->queueHandle->size());
         $task = $this->queueHandle->get();
+
+        // 选择器模式
+        $selector_type = $task['selector_type'] = empty($task['selector_type']) ? empty($this->config['selector_type']) ? 'csspath' : $this->config['selector_type'] : $task['selector_type'];
+        
         $url = $task['url'];
         $request = isset($task['request']) ? $task['request'] : [];
 
@@ -247,6 +251,9 @@ class Spider
         Log::info("Get task，准备下载 url = $url, url_type = {$task['url_type']}");
 
         $html = Downloader::fetch($task['url'], $request);
+        if(isset($this->config['charset'])) {
+            $html = mb_convert_encoding($html, "utf-8", $this->config['charset']);
+        }
         if(!$html) return false;
         
 
@@ -292,9 +299,7 @@ class Spider
             // 如果是内容页面，分析提取页面中的字段
             if('content_page' == $task['url_type']) {
                 $rFields = empty($task['fields']) ? empty($this->config['fields']) ? [] : $this->config['fields'] : $task['fields'];
-                $selector_type = empty($task['selector_type']) ? empty($this->config['selector_type']) ? 'csspath' : $this->config['selector_type'] : $task['selector_type'];
                 if($fields = Field::gets($page['raw'], $rFields, $selector_type)) {
-                    
                     // ===> 准备 config
                     if(empty($task['export'])) {
                         $conf = empty($this->config['export']) ? ['type' => 'log'] : $this->config['export'];
@@ -380,6 +385,11 @@ class Spider
     {
         if('mongo' == $conf['type']) {
             $adapter = new db\adapter\MongoAdapter($conf['uri']);
+        } elseif('mysql' == $conf['type']) {
+            if(!isset($conf['user']) || !isset($conf['password'])) {
+                Log::error('无法链接 MYSQL 数据库', true);
+            }
+            $adapter = new db\adapter\MysqlAdapter($conf['uri'], $conf['user'], $conf['password']);
         } elseif(in_array($conf['type'], ['file', 'log', 'csv'])) {
             $class = 'yunlong2cn\\ps\\db\\adapter\\'. ucfirst($conf['type']) .'Adapter';
             $adapter = new $class;

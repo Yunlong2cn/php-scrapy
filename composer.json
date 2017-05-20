@@ -19,7 +19,8 @@
         "jeremeamia/SuperClosure": "^2.3",
         "facebook/webdriver": "^1.4",
         "gos/pnctl-event-loop-emitter": "^0.1.5",
-        "duncan3dc/fork-helper": "^2.0"
+        "duncan3dc/fork-helper": "^2.0",
+        "stil/xpath-selector": "^2.0"
     },
     "autoload": {
         "psr-4": { 

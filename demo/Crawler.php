@@ -18,28 +18,13 @@ class Crawler
      * @param spider 为空，则执行所有爬虫进行采集
      *
      **/
-    public function index($spider = '', $type = 'multi')
+    public function index($spider = '')
     {
-        if(empty($spider)) {
-            $spiders = require('./config/spiders.php');
-        } else {
-            $spiders = [];
-            $_spiders = explode(',', $spider);
-            foreach ($_spiders as $spider) {
-                $spiders[] = require('./config/spiders/'. $spider .'.php');
-            }
-        }
-
-
-        $scheduler = new Scheduler;
-
-        foreach ($spiders as $spider) {
-            $spider = Helper::merge($spider, ['type' => $type]);
-            $scheduler->newTask(Work::execute(Helper::serialize($spider)));
-        }
-        
-        $scheduler->run();
-
+        $globalConfig = Config::get();
+        $config = require(ROOT . '/config/spiders/'. $spider .'.php');
+        $config = Helper::merge($globalConfig, Helper::serialize($config));
+        $doSpider = new Spider($config);
+        $doSpider->start();
     }
 
     public function multi()
@@ -74,8 +59,16 @@ class Crawler
         }
     }
 
-    public function test()
+    // 单进程采集
+    public function start()
     {
-
+        $root = ROOT;
+        
+        $spiders = ['360', 'ifeng', 'sina', 'toutiao', 'wzxc'];
+        foreach ($spiders as $spider) {
+            $cmd = "/usr/bin/lockf -s -t 0 $root/lockfiles/$spider.lock $root/scrapy crawler app_news/$spider >> $root/logs/$spider.log &";
+            echo $cmd . PHP_EOL;
+            system($cmd);
+        }
     }
 }
